@@ -4,7 +4,7 @@
 
 ## Стек
 - Next.js 16 App Router, React 19, TypeScript, Tailwind 4
-- Claude API через `@anthropic-ai/sdk`, модель `claude-opus-5` для агента, `claude-sonnet-5` для подзадач
+- Модель: Claude (`@anthropic-ai/sdk`) или OpenAI (`openai`), выбор в `lib/llm/index.ts` по ключу в окружении
 - Supabase (таблицы `schedules`, `lessons`, `agent_runs`), Telegram Bot API, .ics календарь
 - Деплой Vercel
 

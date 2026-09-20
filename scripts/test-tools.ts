@@ -21,8 +21,8 @@ const conflicting: Lesson[] = [
 ];
 
 async function main() {
-  // Без клиента Anthropic: extract не вызываем, остальное работает
-  const state = new AgentState({ group: "ИС-21", text: "тест" }, null as never);
+  // Экстрактор-заглушка: extract не вызываем, остальное работает
+  const state = new AgentState({ group: "ИС-21", text: "тест" }, async () => null);
 
   const noSchedule = await state.run("validate_schedule", {});
   check("validate без расписания возвращает ошибку", !noSchedule.ok);

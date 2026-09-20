@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { AGENT_SYSTEM_PROMPT } from "@/lib/prompt";
-import { AgentState, TOOLS } from "@/lib/tools";
+import { AgentState, TOOL_DEFS } from "@/lib/tools";
 import { getSupabase } from "@/lib/supabase";
+import { describeError, getProvider, loadProvider } from "@/lib/llm";
 import type { AgentEvent, AgentInput } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -23,7 +23,8 @@ export async function POST(req: Request) {
   if (!input.group?.trim()) return Response.json({ error: "Укажи группу" }, { status: 400 });
   if (!input.text?.trim() && !input.image) return Response.json({ error: "Загрузи фото или вставь текст" }, { status: 400 });
   if (input.image && input.image.data.length > 5_400_000) return Response.json({ error: "Фото больше 4 МБ, сожми или обрежь" }, { status: 413 });
-  if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "Нет ANTHROPIC_API_KEY в окружении" }, { status: 500 });
+  const provider = getProvider();
+  if (!provider) return Response.json({ error: "Нет ключа модели в окружении: задай OPENAI_API_KEY или ANTHROPIC_API_KEY" }, { status: 500 });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -35,13 +36,10 @@ export async function POST(req: Request) {
       };
       const startedAt = new Date().toISOString();
       try {
-        await runAgent(input, send);
+        await runAgent(provider, input, send);
       } catch (err) {
-        const message =
-          err instanceof Anthropic.AuthenticationError ? "Неверный ANTHROPIC_API_KEY"
-          : err instanceof Anthropic.RateLimitError ? "Лимит запросов к Claude, попробуй через минуту"
-          : err instanceof Error ? err.message : "Ошибка агента";
-        send({ type: "error", message });
+        console.error(err);
+        send({ type: "error", message: describeError(err) });
       } finally {
         try {
           await logRun(input.group, startedAt, events);
@@ -58,64 +56,40 @@ export async function POST(req: Request) {
   });
 }
 
-async function runAgent(input: AgentInput, send: (e: AgentEvent) => void) {
-  const client = new Anthropic();
-  const state = new AgentState(input, client);
+async function runAgent(provider: "anthropic" | "openai", input: AgentInput, send: (e: AgentEvent) => void) {
+  const { runLoop, extract } = await loadProvider(provider);
+  const state = new AgentState(input, extract);
+  const failedTools = new Set<string>();
 
-  const sourceDesc = [
+  const userMessage = [
     `Группа: ${input.group}.`,
     input.image ? "Загружено фото расписания, инструмент extract_schedule его видит." : "",
     input.text ? `Текст из чата (${input.text.length} символов), инструмент extract_schedule его видит.` : "",
     "Выполни задачу до конца.",
   ].filter(Boolean).join(" ");
 
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: sourceDesc }];
-  const failedTools = new Set<string>();
-  let finished = false;
-
-  for (let step = 0; step < MAX_STEPS; step++) {
-    const response = await client.messages.create({
-      model: "claude-opus-5",
-      max_tokens: 4096,
-      system: AGENT_SYSTEM_PROMPT,
-      tools: TOOLS,
-      messages,
-    });
-
-    for (const block of response.content) {
-      if (block.type === "text" && block.text.trim()) send({ type: "plan", text: block.text.trim() });
-    }
-
-    if (response.stop_reason === "refusal") throw new Error("Модель отказалась выполнять запрос");
-    if (response.stop_reason !== "tool_use") {
-      finished = true;
-      break;
-    }
-
-    messages.push({ role: "assistant", content: response.content });
-    const results: Anthropic.ToolResultBlockParam[] = [];
-
-    for (const block of response.content) {
-      if (block.type !== "tool_use") continue;
-      send({ type: "tool_call", tool: block.name, input: block.input });
-      const outcome = await state.run(block.name, block.input);
-      send({ type: "tool_result", tool: block.name, ok: outcome.ok, summary: outcome.summary });
+  const finished = await runLoop({
+    system: AGENT_SYSTEM_PROMPT,
+    userMessage,
+    tools: TOOL_DEFS,
+    maxSteps: MAX_STEPS,
+    onText: (text) => send({ type: "plan", text }),
+    onToolCall: async (name, args) => {
+      send({ type: "tool_call", tool: name, input: args });
+      const outcome = await state.run(name, args);
+      send({ type: "tool_result", tool: name, ok: outcome.ok, summary: outcome.summary });
       if (!outcome.ok) {
-        failedTools.add(block.name);
-      } else {
-        const fixesValidation = failedTools.has("validate_schedule") && (block.name === "extract_schedule" || block.name === "fix_schedule");
-        if (failedTools.has(block.name)) {
-          send({ type: "retry", reason: `Повтор ${TOOL_NAMES[block.name] ?? block.name} после ошибки: успешно` });
-          failedTools.delete(block.name);
-        } else if (fixesValidation) {
-          send({ type: "retry", reason: `Расписание исправлено после проверки, идёт повторная проверка` });
-          failedTools.delete("validate_schedule");
-        }
+        failedTools.add(name);
+      } else if (failedTools.has(name)) {
+        send({ type: "retry", reason: `Повтор ${TOOL_NAMES[name] ?? name} после ошибки: успешно` });
+        failedTools.delete(name);
+      } else if (failedTools.has("validate_schedule") && (name === "extract_schedule" || name === "fix_schedule")) {
+        send({ type: "retry", reason: "Расписание исправлено после проверки, идёт повторная проверка" });
+        failedTools.delete("validate_schedule");
       }
-      results.push({ type: "tool_result", tool_use_id: block.id, content: outcome.result, is_error: !outcome.ok });
-    }
-    messages.push({ role: "user", content: results });
-  }
+      return outcome;
+    },
+  });
 
   if (!finished) {
     send({ type: "error", message: `Агент не завершил задачу за ${MAX_STEPS} шагов. Сохранено занятий: ${state.saved}` });

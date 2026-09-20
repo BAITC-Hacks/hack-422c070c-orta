@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentEvent } from "@/lib/types";
 
-type Health = { anthropic: boolean; supabase: "ok" | "off" | "error"; telegram: boolean };
+type Health = { provider: "anthropic" | "openai" | null; supabase: "ok" | "off" | "error"; telegram: boolean };
 
 const TOOL_LABELS: Record<string, string> = {
   extract_schedule: "Распознавание расписания",
@@ -117,7 +117,7 @@ export default function Home() {
         </p>
         {health && (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <Badge ok={health.anthropic} label="Claude" />
+            <Badge ok={Boolean(health.provider)} label={health.provider === "openai" ? "OpenAI" : health.provider === "anthropic" ? "Claude" : "Модель"} />
             <Badge ok={health.supabase === "ok"} label={health.supabase === "error" ? "Supabase: ошибка" : "Supabase"} />
             <Badge ok={health.telegram} label="Telegram" />
           </div>

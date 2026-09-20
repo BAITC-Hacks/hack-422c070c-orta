@@ -1,16 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { EXTRACT_SYSTEM_PROMPT } from "@/lib/prompt";
+import type { Extractor, ToolDef, ToolOutcome } from "@/lib/llm";
 import { getSupabase } from "@/lib/supabase";
 import { sendTelegram } from "@/lib/telegram";
 import { buildIcs } from "@/lib/ics";
 import { ScheduleSchema, type AgentInput, type Lesson, type Schedule } from "@/lib/types";
+export type { ToolOutcome };
 
-export const TOOLS: Anthropic.Tool[] = [
+export const TOOL_DEFS: ToolDef[] = [
   {
     name: "extract_schedule",
     description: "Распознаёт расписание из загруженного фото или текста и возвращает структурированный список занятий.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         instructions: {
@@ -23,12 +22,12 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: "validate_schedule",
     description: "Проверяет текущее расписание: пересечения по времени, пустые поля, формат времени. Возвращает список проблем.",
-    input_schema: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "fix_schedule",
     description: "Заменяет текущее расписание исправленной версией. Используй, когда проблемы очевидны и их можно поправить без повторного распознавания.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         lessons: {
@@ -55,22 +54,22 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: "save_schedule",
     description: "Сохраняет проверенное расписание в базу данных Supabase для указанной группы. Старые занятия группы заменяются.",
-    input_schema: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "verify_saved",
     description: "Читает расписание группы из базы и сверяет количество занятий с текущим.",
-    input_schema: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "create_calendar",
     description: "Создаёт файл календаря .ics с повторяющимися событиями на семестр.",
-    input_schema: { type: "object", properties: {} },
+    parameters: { type: "object", properties: {} },
   },
   {
     name: "notify_group",
     description: "Отправляет сообщение в Telegram-группу студентов.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         message: { type: "string", description: "Текст сообщения для студентов на русском, можно с HTML-тегами <b> и <i>" },
@@ -80,8 +79,6 @@ export const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-export type ToolOutcome = { ok: boolean; result: string; summary: string };
-
 export class AgentState {
   schedule: Schedule | null = null;
   ics: string | null = null;
@@ -89,7 +86,7 @@ export class AgentState {
   notified = false;
   private memoryStore: Lesson[] = [];
 
-  constructor(private input: AgentInput, private client: Anthropic) {}
+  constructor(private input: AgentInput, private extractor: Extractor) {}
 
   async run(name: string, rawInput: unknown): Promise<ToolOutcome> {
     const input = (rawInput ?? {}) as Record<string, unknown>;
@@ -114,24 +111,7 @@ export class AgentState {
   }
 
   private async extract(instructions?: string): Promise<ToolOutcome> {
-    const content: Anthropic.ContentBlockParam[] = [];
-    if (this.input.image) {
-      content.push({ type: "image", source: { type: "base64", media_type: this.input.image.media_type, data: this.input.image.data } });
-    }
-    const textParts = [`Группа: ${this.input.group}`];
-    if (this.input.text) textParts.push(`Текст из чата:\n${this.input.text}`);
-    if (instructions) textParts.push(`Указания для этой попытки: ${instructions}`);
-    content.push({ type: "text", text: textParts.join("\n\n") });
-
-    const response = await this.client.messages.parse({
-      model: "claude-sonnet-5",
-      max_tokens: 8000,
-      system: EXTRACT_SYSTEM_PROMPT,
-      messages: [{ role: "user", content }],
-      output_config: { format: zodOutputFormat(ScheduleSchema) },
-    });
-
-    const parsed = response.parsed_output;
+    const parsed = await this.extractor(this.input, instructions);
     if (!parsed) return { ok: false, result: "Не удалось распознать расписание", summary: "распознавание не удалось" };
     this.schedule = parsed;
     return {

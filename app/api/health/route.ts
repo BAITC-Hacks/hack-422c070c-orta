@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { getProvider } from "@/lib/llm";
 
 export async function GET() {
   const sb = getSupabase();
@@ -8,7 +9,7 @@ export async function GET() {
     supabase = error ? "error" : "ok";
   }
   return Response.json({
-    anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+    provider: getProvider(),
     supabase,
     telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
   });
