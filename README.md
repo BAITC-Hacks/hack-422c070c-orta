@@ -47,7 +47,7 @@
 
 ## Демо
 
-Ссылка: https://starosta-agent-oscaraltyn.vercel.app
+Ссылка: https://starosta-agent.vercel.app
 
 Сценарий на 2 минуты:
 1. Открыть сайт, нажать «Вставить пример» или загрузить фото реального расписания.
