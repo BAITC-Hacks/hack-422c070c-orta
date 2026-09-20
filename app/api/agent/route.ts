@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   const input = (await req.json()) as AgentInput;
   if (!input.group?.trim()) return Response.json({ error: "Укажи группу" }, { status: 400 });
   if (!input.text?.trim() && !input.image) return Response.json({ error: "Загрузи фото или вставь текст" }, { status: 400 });
+  if (input.image && input.image.data.length > 6_000_000) return Response.json({ error: "Фото больше 4 МБ, сожми или обрежь" }, { status: 413 });
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "Нет ANTHROPIC_API_KEY в окружении" }, { status: 500 });
 
   const encoder = new TextEncoder();

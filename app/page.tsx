@@ -1,7 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentEvent } from "@/lib/types";
+
+type Health = { anthropic: boolean; supabase: "ok" | "off" | "error"; telegram: boolean };
 
 const TOOL_LABELS: Record<string, string> = {
   extract_schedule: "Распознавание расписания",
@@ -20,6 +22,14 @@ const SAMPLE_TEXT = `Расписание ИС-21 с 22 сентября
 Чт: 3 пара Программирование лаб 12; 4 пара Базы данных ауд 214 Сейткали Д.
 Пт: 1 пара Английский ауд 310; 2 пара Философия ауд 118`;
 
+function Badge({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span className={`rounded-full border px-2.5 py-1 ${ok ? "border-green-300 bg-green-50 text-green-800" : "border-gray-300 bg-gray-50 text-gray-500"}`}>
+      {ok ? "●" : "○"} {label}{ok ? "" : ": заглушка"}
+    </span>
+  );
+}
+
 export default function Home() {
   const [group, setGroup] = useState("ИС-21");
   const [text, setText] = useState("");
@@ -27,6 +37,11 @@ export default function Home() {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [running, setRunning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [health, setHealth] = useState<Health | null>(null);
+
+  useEffect(() => {
+    fetch("/api/health").then((r) => r.json()).then(setHealth).catch(() => setHealth(null));
+  }, []);
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -100,6 +115,13 @@ export default function Home() {
         <p className="mt-2 text-gray-600">
           Фото расписания или сообщение из чата → база, календарь и уведомление группы. Без ручной перепечатки.
         </p>
+        {health && (
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Badge ok={health.anthropic} label="Claude" />
+            <Badge ok={health.supabase === "ok"} label={health.supabase === "error" ? "Supabase: ошибка" : "Supabase"} />
+            <Badge ok={health.telegram} label="Telegram" />
+          </div>
+        )}
       </header>
 
       <div className="grid gap-8 md:grid-cols-[1fr_1.2fr]">
