@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && if [ -n \"$(git status --porcelain)\" ]; then git add -A && git commit -qm \"wip: $(date '+%H:%M')\" && git push -q origin HEAD 2>/dev/null; fi; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
