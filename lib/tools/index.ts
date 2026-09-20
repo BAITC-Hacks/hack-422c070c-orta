@@ -188,10 +188,15 @@ export class AgentState {
       return { ok: true, result: `Supabase не настроен, сохранено в память: ${rows.length} занятий`, summary: `${rows.length} занятий (заглушка, без Supabase)` };
     }
 
+    const old = await sb.from("lessons").select("group_name, day, start, end, subject, teacher, room, type").eq("group_name", group);
+    if (old.error) return { ok: false, result: `Ошибка чтения старых записей: ${old.error.message}`, summary: "ошибка базы" };
     const del = await sb.from("lessons").delete().eq("group_name", group);
     if (del.error) return { ok: false, result: `Ошибка очистки: ${del.error.message}`, summary: "ошибка базы" };
     const ins = await sb.from("lessons").insert(rows);
-    if (ins.error) return { ok: false, result: `Ошибка записи: ${ins.error.message}`, summary: "ошибка базы" };
+    if (ins.error) {
+      if (old.data?.length) await sb.from("lessons").insert(old.data);
+      return { ok: false, result: `Ошибка записи: ${ins.error.message}. Старое расписание восстановлено`, summary: "ошибка базы, откат" };
+    }
     await sb.from("schedules").upsert({ group_name: group, week_note: this.schedule.week_note, lessons_count: rows.length, updated_at: new Date().toISOString() }, { onConflict: "group_name" });
     this.saved = rows.length;
     return { ok: true, result: `Записано в Supabase: ${rows.length} занятий для группы ${group}`, summary: `${rows.length} занятий в Supabase` };

@@ -8,11 +8,21 @@ export const maxDuration = 300;
 
 const MAX_STEPS = 14;
 
+const TOOL_NAMES: Record<string, string> = {
+  extract_schedule: "распознавания",
+  validate_schedule: "проверки",
+  fix_schedule: "исправления",
+  save_schedule: "записи в базу",
+  verify_saved: "сверки",
+  create_calendar: "календаря",
+  notify_group: "уведомления",
+};
+
 export async function POST(req: Request) {
   const input = (await req.json()) as AgentInput;
   if (!input.group?.trim()) return Response.json({ error: "Укажи группу" }, { status: 400 });
   if (!input.text?.trim() && !input.image) return Response.json({ error: "Загрузи фото или вставь текст" }, { status: 400 });
-  if (input.image && input.image.data.length > 6_000_000) return Response.json({ error: "Фото больше 4 МБ, сожми или обрежь" }, { status: 413 });
+  if (input.image && input.image.data.length > 5_400_000) return Response.json({ error: "Фото больше 4 МБ, сожми или обрежь" }, { status: 413 });
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "Нет ANTHROPIC_API_KEY в окружении" }, { status: 500 });
 
   const encoder = new TextEncoder();
@@ -33,7 +43,11 @@ export async function POST(req: Request) {
           : err instanceof Error ? err.message : "Ошибка агента";
         send({ type: "error", message });
       } finally {
-        await logRun(input.group, startedAt, events);
+        try {
+          await logRun(input.group, startedAt, events);
+        } catch (err) {
+          console.error("logRun failed", err);
+        }
         controller.close();
       }
     },
@@ -56,7 +70,8 @@ async function runAgent(input: AgentInput, send: (e: AgentEvent) => void) {
   ].filter(Boolean).join(" ");
 
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: sourceDesc }];
-  let lastFail: string | null = null;
+  const failedTools = new Set<string>();
+  let finished = false;
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const response = await client.messages.create({
@@ -72,7 +87,10 @@ async function runAgent(input: AgentInput, send: (e: AgentEvent) => void) {
     }
 
     if (response.stop_reason === "refusal") throw new Error("Модель отказалась выполнять запрос");
-    if (response.stop_reason !== "tool_use") break;
+    if (response.stop_reason !== "tool_use") {
+      finished = true;
+      break;
+    }
 
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
@@ -83,14 +101,29 @@ async function runAgent(input: AgentInput, send: (e: AgentEvent) => void) {
       const outcome = await state.run(block.name, block.input);
       send({ type: "tool_result", tool: block.name, ok: outcome.ok, summary: outcome.summary });
       if (!outcome.ok) {
-        lastFail = block.name;
-      } else if (lastFail && (block.name === lastFail || block.name === "extract_schedule" || block.name === "fix_schedule")) {
-        send({ type: "retry", reason: `Повторная попытка после ошибки в ${lastFail}: успешно` });
-        lastFail = null;
+        failedTools.add(block.name);
+      } else {
+        const fixesValidation = failedTools.has("validate_schedule") && (block.name === "extract_schedule" || block.name === "fix_schedule");
+        if (failedTools.has(block.name)) {
+          send({ type: "retry", reason: `Повтор ${TOOL_NAMES[block.name] ?? block.name} после ошибки: успешно` });
+          failedTools.delete(block.name);
+        } else if (fixesValidation) {
+          send({ type: "retry", reason: `Расписание исправлено после проверки, идёт повторная проверка` });
+          failedTools.delete("validate_schedule");
+        }
       }
       results.push({ type: "tool_result", tool_use_id: block.id, content: outcome.result, is_error: !outcome.ok });
     }
     messages.push({ role: "user", content: results });
+  }
+
+  if (!finished) {
+    send({ type: "error", message: `Агент не завершил задачу за ${MAX_STEPS} шагов. Сохранено занятий: ${state.saved}` });
+    return;
+  }
+  if (state.saved === 0) {
+    send({ type: "error", message: "Агент завершился, но расписание не сохранено. Проверь исходные данные." });
+    return;
   }
 
   send({
