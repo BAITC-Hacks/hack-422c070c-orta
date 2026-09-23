@@ -32,6 +32,8 @@ type Role = "business" | "team" | null;
 
 export default function Home() {
   const [role, setRole] = useState<Role>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>("draft");
   const [draftText, setDraftText] = useState("");
@@ -233,6 +235,31 @@ export default function Home() {
       {role && (
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-10 items-start">
           <aside className="hidden lg:flex flex-col gap-2 sticky top-8">
+            <div className="border border-border-subtle bg-surface rounded-xl p-3 mb-4">
+              <p className="text-xs uppercase tracking-wide text-muted mb-1">Мой аккаунт</p>
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={role === "business" ? "Название компании" : "Название команды"}
+                className="w-full bg-transparent text-sm font-semibold border-b border-border-subtle focus:border-accent focus:outline-none pb-1 mb-2 placeholder:text-muted placeholder:font-normal"
+              />
+              {role === "business" ? (
+                <p className="text-xs text-muted leading-relaxed">
+                  Опубликовано: <span className="text-foreground">{catalog.length}</span>
+                  <br />
+                  Откликов получено: <span className="text-foreground">{responses.length}</span>
+                  <br />
+                  Принято: <span className="text-accent">{responses.filter((r) => r.status === "accepted").length}</span>
+                </p>
+              ) : (
+                <p className="text-xs text-muted leading-relaxed">
+                  Задач в каталоге: <span className="text-foreground">{catalog.length}</span>
+                  <br />
+                  Тем для фильтра: <span className="text-foreground">{topics.length}</span>
+                </p>
+              )}
+            </div>
+
             <p className="text-xs uppercase tracking-wide text-muted mb-1">
               {role === "business" ? "Мои задачи" : "Темы в каталоге"}
             </p>
@@ -451,13 +478,33 @@ export default function Home() {
                           r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-danger" : "text-muted";
                         return (
                           <div key={r.id} className="border border-border-subtle bg-background rounded-xl p-3 mb-2 text-sm">
-                            <p>
-                              <strong>{team?.name}</strong>: {r.idea}
+                            <div className="flex justify-between items-start gap-2">
+                              <p className="font-semibold">{team?.name}</p>
+                              <span className={`text-xs shrink-0 ${statusColor}`}>{r.status}</span>
+                            </div>
+                            {team && (
+                              <p className="text-xs text-muted mt-0.5">
+                                {team.interests} · {team.skills} · {team.tech}
+                              </p>
+                            )}
+                            <p className="mt-2">
+                              <span className="text-muted">Идея: </span>
+                              {r.idea}
                             </p>
-                            <p className="text-muted">{r.plan}</p>
-                            <p className={`mt-1 ${statusColor}`}>
-                              Статус: <strong>{r.status}</strong>
-                            </p>
+                            {r.plan && (
+                              <p className="mt-1">
+                                <span className="text-muted">План: </span>
+                                {r.plan}
+                              </p>
+                            )}
+                            {r.link && (
+                              <p className="mt-1">
+                                <span className="text-muted">Прототип: </span>
+                                <a href={r.link} target="_blank" rel="noreferrer" className="text-accent-blue hover:underline break-all">
+                                  {r.link}
+                                </a>
+                              </p>
+                            )}
                             {r.status === "pending" && (
                               <div className="flex gap-2 mt-2">
                                 <button
@@ -565,6 +612,54 @@ export default function Home() {
                     <span className="text-muted">Для кого: </span>
                     {task.card.users}
                   </p>
+                )}
+
+                <button
+                  onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                  className="text-xs text-accent-blue hover:underline mt-3"
+                >
+                  {expandedTaskId === task.id ? "Свернуть" : "Подробнее о задаче"}
+                </button>
+
+                {expandedTaskId === task.id && (
+                  <div className="mt-2 border-t border-border-subtle pt-3 flex flex-col gap-1.5 text-sm">
+                    {task.card.need && (
+                      <p>
+                        <span className="text-muted">Потребность: </span>
+                        {task.card.need}
+                      </p>
+                    )}
+                    {task.card.data && (
+                      <p>
+                        <span className="text-muted">Данные: </span>
+                        {task.card.data}
+                      </p>
+                    )}
+                    {task.card.constraints && (
+                      <p>
+                        <span className="text-muted">Ограничения: </span>
+                        {task.card.constraints}
+                      </p>
+                    )}
+                    {task.card.successCriteria && (
+                      <p>
+                        <span className="text-muted">Критерии успеха: </span>
+                        {task.card.successCriteria}
+                      </p>
+                    )}
+                    {task.card.contact && (
+                      <p>
+                        <span className="text-muted">Контакт: </span>
+                        {task.card.contact}
+                      </p>
+                    )}
+                    {task.card.format && (
+                      <p>
+                        <span className="text-muted">Формат связи: </span>
+                        {task.card.format}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 <TeamResponseForm taskId={task.id} teams={SEED_TEAMS} onSubmit={submitResponse} />
