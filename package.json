@@ -1,21 +1,17 @@
 {
-  "name": "starosta-agent",
+  "name": "hack-422c070c-orta",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "test": "tsx scripts/test-tools.ts"
+    "start": "next start"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
-    "@supabase/supabase-js": "^2.116.0",
     "next": "16.3.5",
-    "openai": "^7.20.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "zod": "^4.6.5"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -23,7 +19,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
-    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

@@ -1,34 +1,53 @@
-import { z } from "zod";
+export type RatingCategory =
+  | "context"
+  | "data"
+  | "expectedResult"
+  | "successCriteria"
+  | "constraints"
+  | "users"
+  | "businessContact";
 
-export const LessonSchema = z.object({
-  day: z.enum(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]),
-  start: z.string().describe("Время начала в формате HH:MM"),
-  end: z.string().describe("Время конца в формате HH:MM"),
-  subject: z.string(),
-  teacher: z.string().nullable(),
-  room: z.string().nullable(),
-  type: z.enum(["лекция", "практика", "лаборатория", "другое"]).nullable(),
-});
+export interface TaskCard {
+  title: string;
+  context: string;
+  need: string;
+  users: string;
+  data: string;
+  constraints: string;
+  expectedResult: string;
+  successCriteria: string;
+  contact: string;
+  format: string;
+}
 
-export const ScheduleSchema = z.object({
-  group: z.string().nullable(),
-  week_note: z.string().nullable().describe("Пометка о неделе, например 'числитель' или 'с 22 сентября'"),
-  lessons: z.array(LessonSchema),
-});
+export type ReadinessLevel = "черновик" | "рабочая" | "готовая" | "приоритетная";
 
-export type Lesson = z.infer<typeof LessonSchema>;
-export type Schedule = z.infer<typeof ScheduleSchema>;
+export interface Task {
+  id: string;
+  draftText: string;
+  card: TaskCard;
+  rating: number;
+  readiness: ReadinessLevel;
+  createdAt: string;
+}
 
-export type AgentInput = {
-  group: string;
-  text?: string;
-  image?: { media_type: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; data: string };
-};
+export interface Team {
+  id: string;
+  name: string;
+  interests: string;
+  skills: string;
+  tech: string;
+}
 
-export type AgentEvent =
-  | { type: "plan"; text: string }
-  | { type: "tool_call"; tool: string; input: unknown }
-  | { type: "tool_result"; tool: string; ok: boolean; summary: string }
-  | { type: "retry"; reason: string }
-  | { type: "done"; summary: string; schedule: Schedule | null; ics: string | null; saved: number; notified: boolean }
-  | { type: "error"; message: string };
+export type ResponseStatus = "pending" | "accepted" | "declined";
+
+export interface TeamResponse {
+  id: string;
+  taskId: string;
+  teamId: string;
+  idea: string;
+  plan: string;
+  deadline: string;
+  link: string;
+  status: ResponseStatus;
+}
