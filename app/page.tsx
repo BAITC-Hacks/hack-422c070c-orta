@@ -159,8 +159,10 @@ export default function Home() {
 
   return (
     <main className="flex-1 max-w-3xl mx-auto w-full px-6 py-12">
-      <h1 className="text-2xl font-bold mb-2">AI Sana Challenge Hub</h1>
-      <p className="text-sm opacity-70 mb-8">От бизнес-задачи к решению — HackAlem AI, трек «Образование»</p>
+      <h1 className="text-3xl font-bold mb-2 tracking-tight">
+        AI Sana <span className="text-accent">Challenge Hub</span>
+      </h1>
+      <p className="text-sm text-muted mb-10">От бизнес-задачи к решению — HackAlem AI, трек «Образование»</p>
 
       {step === "draft" && (
         <form onSubmit={handleDraftSubmit} className="flex flex-col gap-4">
@@ -171,7 +173,7 @@ export default function Home() {
                 key={i}
                 type="button"
                 onClick={() => setDraftText(d)}
-                className="text-xs border rounded-full px-3 py-1 opacity-70 hover:opacity-100"
+                className="text-xs border border-border-subtle rounded-full px-3 py-1.5 text-muted hover:border-accent hover:text-accent transition"
               >
                 Пример {i + 1}
               </button>
@@ -182,12 +184,12 @@ export default function Home() {
             onChange={(e) => setDraftText(e.target.value)}
             placeholder="Например: нужно автоматизировать проверку заявок клиентов..."
             rows={6}
-            className="border rounded-lg p-3 bg-transparent"
+            className="border border-border-subtle bg-surface rounded-xl p-4 placeholder:text-muted focus:outline-none focus:border-accent transition"
           />
           <button
             type="submit"
             disabled={loading || draftText.trim().length < 5}
-            className="self-start rounded-lg bg-black text-white dark:bg-white dark:text-black px-4 py-2 disabled:opacity-50"
+            className="self-start rounded-full bg-accent text-accent-foreground font-semibold px-6 py-2.5 disabled:opacity-40 hover:brightness-110 transition"
           >
             {loading ? "Анализирую..." : "Проанализировать черновик"}
           </button>
@@ -198,12 +200,12 @@ export default function Home() {
         <form onSubmit={handleAnswersSubmit} className="flex flex-col gap-4">
           <label className="font-semibold">Шаг 2. Ответьте на уточняющие вопросы</label>
           {missingCategories.length > 0 && (
-            <p className="text-sm opacity-70">Слабо раскрыто: {missingCategories.join(", ")}</p>
+            <p className="text-sm text-muted">Слабо раскрыто: {missingCategories.join(", ")}</p>
           )}
           {answers.map((a, i) => (
-            <div key={i} className="border rounded-lg p-3">
-              <span className="text-xs uppercase opacity-60">{a.category}</span>
-              <p className="mb-2">{a.question}</p>
+            <div key={i} className="border border-border-subtle bg-surface rounded-xl p-4">
+              <span className="text-xs uppercase tracking-wide text-accent">{a.category}</span>
+              <p className="mb-2 mt-1">{a.question}</p>
               <input
                 value={a.answer}
                 onChange={(e) => {
@@ -211,7 +213,7 @@ export default function Home() {
                   next[i] = { ...next[i], answer: e.target.value };
                   setAnswers(next);
                 }}
-                className="border rounded p-2 w-full bg-transparent"
+                className="border border-border-subtle bg-background rounded-lg p-2 w-full focus:outline-none focus:border-accent transition"
                 placeholder="Ваш ответ"
               />
             </div>
@@ -219,7 +221,7 @@ export default function Home() {
           <button
             type="submit"
             disabled={loading}
-            className="self-start rounded-lg bg-black text-white dark:bg-white dark:text-black px-4 py-2 disabled:opacity-50"
+            className="self-start rounded-full bg-accent text-accent-foreground font-semibold px-6 py-2.5 disabled:opacity-40 hover:brightness-110 transition"
           >
             {loading ? "Собираю карточку..." : "Собрать карточку"}
           </button>
@@ -247,27 +249,27 @@ export default function Home() {
                 ] as [keyof TaskCard, string][]
               ).map(([field, label]) => (
                 <div key={field}>
-                  <label className="text-xs uppercase opacity-60">{label}</label>
+                  <label className="text-xs uppercase tracking-wide text-muted">{label}</label>
                   <textarea
                     value={card[field]}
                     onChange={(e) => updateCardField(field, e.target.value)}
                     rows={2}
-                    className="border rounded p-2 w-full bg-transparent"
+                    className="border border-border-subtle bg-surface rounded-lg p-2 w-full focus:outline-none focus:border-accent transition"
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="border rounded-lg p-4">
-            <p className="font-semibold mb-2">
-              Рейтинг: {rating.score} / 100 — {rating.readiness}
+          <div className="border border-border-subtle bg-surface rounded-2xl p-5">
+            <p className="font-semibold mb-3 text-lg">
+              Рейтинг: <span className="text-accent">{rating.score} / 100</span> — {rating.readiness}
             </p>
-            <ul className="flex flex-col gap-1 text-sm">
+            <ul className="flex flex-col gap-1.5 text-sm">
               {rating.breakdown.map((b) => (
-                <li key={b.category} className={b.filled ? "opacity-100" : "opacity-50"}>
-                  {b.filled ? "✅" : "⬜"} {b.category}: {b.points}/{b.max}
-                  {!b.filled && <span className="opacity-70"> — {b.hint}</span>}
+                <li key={b.category} className={b.filled ? "text-foreground" : "text-muted"}>
+                  <span className={b.filled ? "text-accent" : ""}>{b.filled ? "●" : "○"}</span> {b.category}: {b.points}/{b.max}
+                  {!b.filled && <span> — {b.hint}</span>}
                 </li>
               ))}
             </ul>
@@ -275,7 +277,7 @@ export default function Home() {
 
           <button
             onClick={publishTask}
-            className="self-start rounded-lg bg-black text-white dark:bg-white dark:text-black px-4 py-2"
+            className="self-start rounded-full bg-accent text-accent-foreground font-semibold px-6 py-2.5 hover:brightness-110 transition"
           >
             Подтвердить и опубликовать в каталог
           </button>
@@ -284,22 +286,29 @@ export default function Home() {
 
       {step === "published" && (
         <div className="flex flex-col gap-6">
-          <p className="text-green-600 font-semibold">Задача опубликована в каталоге.</p>
-          <button onClick={resetFlow} className="self-start border rounded-lg px-4 py-2">
+          <p className="text-accent font-semibold">Задача опубликована в каталоге.</p>
+          <button
+            onClick={resetFlow}
+            className="self-start rounded-full border border-border-subtle px-6 py-2.5 hover:border-accent hover:text-accent transition"
+          >
             Добавить ещё одну задачу
           </button>
         </div>
       )}
 
-      {error && <p className="mt-4 text-red-600">{error}</p>}
+      {error && <p className="mt-4 text-red-400">{error}</p>}
 
       {catalog.length > 0 && (
         <section className="mt-16">
           <h2 className="text-xl font-bold mb-4">Шаг 5–6. Каталог задач и отклики команд</h2>
 
           <div className="flex gap-3 mb-6 flex-wrap items-center text-sm">
-            <label className="opacity-70">Тема:</label>
-            <select value={filterTopic} onChange={(e) => setFilterTopic(e.target.value)} className="border rounded p-1 bg-transparent">
+            <label className="text-muted">Тема:</label>
+            <select
+              value={filterTopic}
+              onChange={(e) => setFilterTopic(e.target.value)}
+              className="border border-border-subtle bg-surface rounded-full px-3 py-1.5 focus:outline-none focus:border-accent"
+            >
               <option value="all">Все темы</option>
               {topics.map((t) => (
                 <option key={t} value={t}>
@@ -308,11 +317,11 @@ export default function Home() {
               ))}
             </select>
 
-            <label className="opacity-70">Готовность:</label>
+            <label className="text-muted">Готовность:</label>
             <select
               value={filterReadiness}
               onChange={(e) => setFilterReadiness(e.target.value as ReadinessLevel | "all")}
-              className="border rounded p-1 bg-transparent"
+              className="border border-border-subtle bg-surface rounded-full px-3 py-1.5 focus:outline-none focus:border-accent"
             >
               <option value="all">Все уровни</option>
               {readinessLevels.map((r) => (
@@ -325,46 +334,52 @@ export default function Home() {
 
           <div className="flex flex-col gap-6">
             {filteredCatalog.map((task) => (
-              <div key={task.id} className="border rounded-lg p-4">
+              <div key={task.id} className="border border-border-subtle bg-surface rounded-2xl p-5">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-semibold">{task.card.title || "(без названия)"}</h3>
-                    {task.card.topic && <span className="text-xs opacity-60">{task.card.topic}</span>}
+                    {task.card.topic && (
+                      <span className="inline-block mt-1 text-xs border border-border-subtle rounded-full px-2 py-0.5 text-muted">
+                        {task.card.topic}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-sm opacity-70">
+                  <span className="text-sm text-accent font-semibold whitespace-nowrap">
                     {task.rating}/100 — {task.readiness}
                   </span>
                 </div>
-                <p className="text-sm opacity-70 mt-1">{task.card.context}</p>
+                <p className="text-sm text-muted mt-2">{task.card.context}</p>
 
                 <TeamResponseForm taskId={task.id} teams={SEED_TEAMS} onSubmit={submitResponse} />
 
                 <div className="mt-4">
-                  <p className="text-xs uppercase opacity-60 mb-2">Отклики</p>
+                  <p className="text-xs uppercase tracking-wide text-muted mb-2">Отклики</p>
                   {responses
                     .filter((r) => r.taskId === task.id)
                     .map((r) => {
                       const team = SEED_TEAMS.find((t) => t.id === r.teamId);
+                      const statusColor =
+                        r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-red-400" : "text-muted";
                       return (
-                        <div key={r.id} className="border rounded p-2 mb-2 text-sm">
+                        <div key={r.id} className="border border-border-subtle bg-background rounded-xl p-3 mb-2 text-sm">
                           <p>
                             <strong>{team?.name}</strong>: {r.idea}
                           </p>
-                          <p className="opacity-70">{r.plan}</p>
-                          <p className="mt-1">
+                          <p className="text-muted">{r.plan}</p>
+                          <p className={`mt-1 ${statusColor}`}>
                             Статус: <strong>{r.status}</strong>
                           </p>
                           {r.status === "pending" && (
                             <div className="flex gap-2 mt-2">
                               <button
                                 onClick={() => decideResponse(r.id, "accepted")}
-                                className="text-xs border rounded px-2 py-1"
+                                className="text-xs rounded-full border border-border-subtle px-3 py-1 hover:border-accent hover:text-accent transition"
                               >
                                 Выбрать команду
                               </button>
                               <button
                                 onClick={() => decideResponse(r.id, "declined")}
-                                className="text-xs border rounded px-2 py-1"
+                                className="text-xs rounded-full border border-border-subtle px-3 py-1 hover:border-red-400 hover:text-red-400 transition"
                               >
                                 Отклонить
                               </button>
@@ -407,20 +422,42 @@ function TeamResponseForm({
         setPlan("");
         setLink("");
       }}
-      className="flex flex-col gap-2 mt-3 border-t pt-3"
+      className="flex flex-col gap-2 mt-4 border-t border-border-subtle pt-4"
     >
-      <p className="text-xs uppercase opacity-60">Откликнуться командой</p>
-      <select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="border rounded p-2 bg-transparent text-sm">
+      <p className="text-xs uppercase tracking-wide text-muted">Откликнуться командой</p>
+      <select
+        value={teamId}
+        onChange={(e) => setTeamId(e.target.value)}
+        className="border border-border-subtle bg-background rounded-lg p-2 text-sm focus:outline-none focus:border-accent"
+      >
         {teams.map((t) => (
           <option key={t.id} value={t.id}>
             {t.name}
           </option>
         ))}
       </select>
-      <input value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="Идея решения" className="border rounded p-2 bg-transparent text-sm" />
-      <input value={plan} onChange={(e) => setPlan(e.target.value)} placeholder="Краткий план" className="border rounded p-2 bg-transparent text-sm" />
-      <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Ссылка на прототип" className="border rounded p-2 bg-transparent text-sm" />
-      <button type="submit" className="self-start text-xs border rounded px-2 py-1">
+      <input
+        value={idea}
+        onChange={(e) => setIdea(e.target.value)}
+        placeholder="Идея решения"
+        className="border border-border-subtle bg-background rounded-lg p-2 text-sm focus:outline-none focus:border-accent"
+      />
+      <input
+        value={plan}
+        onChange={(e) => setPlan(e.target.value)}
+        placeholder="Краткий план"
+        className="border border-border-subtle bg-background rounded-lg p-2 text-sm focus:outline-none focus:border-accent"
+      />
+      <input
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+        placeholder="Ссылка на прототип"
+        className="border border-border-subtle bg-background rounded-lg p-2 text-sm focus:outline-none focus:border-accent"
+      />
+      <button
+        type="submit"
+        className="self-start text-xs rounded-full bg-accent text-accent-foreground font-semibold px-4 py-1.5 hover:brightness-110 transition"
+      >
         Отправить отклик
       </button>
     </form>

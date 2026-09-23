@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { CARD_PROMPT } from "@/lib/prompts";
 
-const client = new Anthropic();
+const client = new OpenAI();
 
 interface CardResult {
   title: string;
@@ -34,41 +34,30 @@ export async function POST(req: Request) {
     .join("\n");
 
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-5",
-      max_tokens: 1536,
-      system: CARD_PROMPT,
+    const response = await client.chat.completions.create({
+      model: "gpt-5.4-mini",
+      response_format: { type: "json_object" },
       messages: [
-        {
-          role: "user",
-          content: `Черновик: ${draftText}\n\nОтветы на вопросы:\n${qaText}`,
-        },
+        { role: "system", content: CARD_PROMPT },
+        { role: "user", content: `Черновик: ${draftText}\n\nОтветы на вопросы:\n${qaText}` },
       ],
     });
 
-    if (response.stop_reason === "refusal") {
-      return NextResponse.json({ error: "Модель отказалась отвечать на этот запрос" }, { status: 422 });
-    }
-
-    const text = response.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text)
-      .join("\n");
+    const text = response.choices[0]?.message?.content ?? "";
 
     let parsed: CardResult;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      parsed = JSON.parse(text);
     } catch {
       return NextResponse.json({ error: "Не удалось разобрать карточку, попробуйте ещё раз" }, { status: 502 });
     }
 
     return NextResponse.json(parsed);
   } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json({ error: "Неверный ANTHROPIC_API_KEY" }, { status: 500 });
+    if (err instanceof OpenAI.AuthenticationError) {
+      return NextResponse.json({ error: "Неверный OPENAI_API_KEY" }, { status: 500 });
     }
-    if (err instanceof Anthropic.RateLimitError) {
+    if (err instanceof OpenAI.RateLimitError) {
       return NextResponse.json({ error: "Лимит запросов, попробуйте через минуту" }, { status: 429 });
     }
     console.error(err);
