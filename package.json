@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx tests/rating.test.ts"
+    "test": "tsx tests/rating.test.ts && tsx tests/response-flow.test.ts"
   },
   "dependencies": {
     "next": "16.3.5",

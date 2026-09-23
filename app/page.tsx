@@ -1018,11 +1018,16 @@ function TeamResponseForm({
       />
       <button
         type="submit"
-        className="self-start text-xs rounded-full bg-accent text-accent-foreground font-semibold px-4 py-1.5 hover:brightness-110 transition"
+        disabled={!idea.trim()}
+        className="self-start text-xs rounded-full bg-accent text-accent-foreground font-semibold px-4 py-1.5 hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Отправить отклик
       </button>
-      {sent && <p className="text-xs text-accent">Отклик отправлен.</p>}
+      {sent && !idea.trim() ? (
+        <p className="text-xs text-accent">Отклик отправлен — бизнес увидит его у себя в задаче.</p>
+      ) : (
+        !idea.trim() && <p className="text-xs text-muted">Заполните «Идею решения», чтобы отправить отклик</p>
+      )}
     </form>
   );
 }
