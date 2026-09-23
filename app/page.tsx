@@ -367,7 +367,16 @@ export default function Home() {
 
           {step === "questions" && (
             <form onSubmit={handleAnswersSubmit} className="flex flex-col gap-4 max-w-2xl">
-              <label className="font-semibold">Шаг 2. Ответьте на уточняющие вопросы</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep("draft")}
+                  className="text-muted hover:text-accent transition text-sm"
+                >
+                  ← Назад
+                </button>
+                <label className="font-semibold">Шаг 2. Ответьте на уточняющие вопросы</label>
+              </div>
               {missingCategories.length > 0 && (
                 <p className="text-sm text-muted">Слабо раскрыто: {missingCategories.join(", ")}</p>
               )}
@@ -401,7 +410,16 @@ export default function Home() {
             <div className="flex flex-col gap-6 max-w-2xl">
               <div className="relative">
                 <div className="flex items-start justify-between gap-4">
-                  <label className="font-semibold">Шаг 3. Проверьте и отредактируйте карточку</label>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setStep("questions")}
+                      className="text-muted hover:text-accent transition text-sm mb-1"
+                    >
+                      ← Назад к вопросам
+                    </button>
+                    <label className="font-semibold block">Шаг 3. Проверьте и отредактируйте карточку</label>
+                  </div>
                   <div className="shrink-0 flex items-center gap-2 border border-accent/60 bg-surface rounded-full pl-2 pr-3 py-1.5">
                     <span className="w-6 h-6 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs">
                       ✦
