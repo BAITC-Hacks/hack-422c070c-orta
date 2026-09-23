@@ -218,7 +218,46 @@ export default function Home() {
         </div>
       )}
 
-      {role === "business" && (
+      {role && (
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-8 items-start">
+          <aside className="hidden lg:flex flex-col gap-2 sticky top-8">
+            <p className="text-xs uppercase tracking-wide text-muted mb-1">
+              {role === "business" ? "Мои задачи" : "Темы в каталоге"}
+            </p>
+            {role === "business" &&
+              (catalog.length === 0 ? (
+                <p className="text-xs text-muted">Пока пусто</p>
+              ) : (
+                catalog.map((t) => (
+                  <a
+                    key={t.id}
+                    href={`#task-${t.id}`}
+                    className="text-sm text-muted hover:text-accent transition truncate border-l-2 border-border-subtle hover:border-accent pl-2 py-0.5"
+                  >
+                    {t.card.title || "(без названия)"}
+                  </a>
+                ))
+              ))}
+            {role === "team" &&
+              (topics.length === 0 ? (
+                <p className="text-xs text-muted">Пока пусто</p>
+              ) : (
+                topics.map((topic) => (
+                  <button
+                    key={topic}
+                    onClick={() => setFilterTopic(topic)}
+                    className={`text-left text-sm truncate border-l-2 pl-2 py-0.5 transition ${
+                      filterTopic === topic ? "border-accent text-accent" : "border-border-subtle text-muted hover:text-accent hover:border-accent"
+                    }`}
+                  >
+                    {topic}
+                  </button>
+                ))
+              ))}
+          </aside>
+
+          <div className="min-w-0">
+          {role === "business" && (
         <>
           {step === "draft" && (
             <form onSubmit={handleDraftSubmit} className="flex flex-col gap-4 max-w-2xl">
@@ -371,7 +410,7 @@ export default function Home() {
             {catalog.length === 0 && <p className="text-muted text-sm">Пока нет опубликованных задач.</p>}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {catalog.map((task) => (
-                <div key={task.id} className="border border-border-subtle bg-surface rounded-2xl p-5">
+                <div key={task.id} id={`task-${task.id}`} className="border border-border-subtle bg-surface rounded-2xl p-5 scroll-mt-8">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-semibold">{task.card.title || "(без названия)"}</h3>
@@ -525,6 +564,30 @@ export default function Home() {
             ))}
           </div>
         </section>
+      )}
+          </div>
+
+          <aside className="hidden lg:flex flex-col gap-3 sticky top-8">
+            <p className="text-xs uppercase tracking-wide text-muted mb-1">Активность</p>
+            {responses.length === 0 && <p className="text-xs text-muted">Пока нет откликов</p>}
+            {[...responses]
+              .reverse()
+              .slice(0, 6)
+              .map((r) => {
+                const team = SEED_TEAMS.find((t) => t.id === r.teamId);
+                const task = catalog.find((t) => t.id === r.taskId);
+                const statusColor =
+                  r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-red-400" : "text-muted";
+                return (
+                  <div key={r.id} className="border border-border-subtle bg-surface rounded-xl p-3 text-xs">
+                    <p className="font-semibold truncate">{team?.name}</p>
+                    <p className="text-muted truncate mt-0.5">→ {task?.card.title || "задача"}</p>
+                    <p className={`mt-1 ${statusColor}`}>{r.status}</p>
+                  </div>
+                );
+              })}
+          </aside>
+        </div>
       )}
     </main>
   );
