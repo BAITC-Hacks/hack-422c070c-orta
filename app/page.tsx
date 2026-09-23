@@ -16,6 +16,19 @@ interface Answer extends Question {
 
 const SEED_TEAMS: Team[] = SEED_TEAM_PROFILES.map((p, i) => ({ id: `t${i + 1}`, ...p }));
 
+function readinessBadgeClass(level: ReadinessLevel): string {
+  switch (level) {
+    case "приоритетная":
+      return "bg-accent text-accent-foreground";
+    case "готовая":
+      return "border border-accent text-accent";
+    case "рабочая":
+      return "border border-border-subtle text-foreground";
+    default:
+      return "border border-border-subtle text-muted";
+  }
+}
+
 type Step = "draft" | "questions" | "card" | "published";
 type Role = "business" | "team" | null;
 
@@ -465,21 +478,45 @@ export default function Home() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredCatalog.map((task) => (
-              <div key={task.id} className="border border-border-subtle bg-surface rounded-2xl p-5">
-                <div className="flex justify-between items-start">
+              <div
+                key={task.id}
+                className="border border-border-subtle bg-surface rounded-2xl p-5 hover:border-accent/60 transition"
+              >
+                <div className="flex justify-between items-start gap-3">
                   <div>
-                    <h3 className="font-semibold">{task.card.title || "(без названия)"}</h3>
+                    <h3 className="font-semibold text-lg">{task.card.title || "(без названия)"}</h3>
                     {task.card.topic && (
-                      <span className="inline-block mt-1 text-xs border border-border-subtle rounded-full px-2 py-0.5 text-muted">
+                      <span className="inline-block mt-1.5 text-xs border border-border-subtle rounded-full px-2 py-0.5 text-muted">
                         {task.card.topic}
                       </span>
                     )}
                   </div>
-                  <span className="text-sm text-accent font-semibold whitespace-nowrap">
-                    {task.rating}/100 — {task.readiness}
+                  <span className={`shrink-0 text-xs font-semibold rounded-full px-2.5 py-1 ${readinessBadgeClass(task.readiness)}`}>
+                    {task.readiness}
                   </span>
                 </div>
-                <p className="text-sm text-muted mt-2">{task.card.context}</p>
+
+                <div className="mt-3">
+                  <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${task.rating}%` }} />
+                  </div>
+                  <p className="text-xs text-muted mt-1">Рейтинг {task.rating}/100</p>
+                </div>
+
+                <p className="text-sm text-muted mt-3 line-clamp-2">{task.card.context}</p>
+
+                {task.card.expectedResult && (
+                  <p className="text-sm mt-2">
+                    <span className="text-muted">Результат: </span>
+                    {task.card.expectedResult}
+                  </p>
+                )}
+                {task.card.users && (
+                  <p className="text-sm mt-1">
+                    <span className="text-muted">Для кого: </span>
+                    {task.card.users}
+                  </p>
+                )}
 
                 <TeamResponseForm taskId={task.id} teams={SEED_TEAMS} onSubmit={submitResponse} />
 
