@@ -91,6 +91,16 @@ const SEED_CARDS: TaskCard[] = [
   },
 ];
 
+// Фиксированные даты, а не Date.now(): иначе сервер и браузер посчитают разное время
+// и React ругается на расхождение при гидрации.
+const SEED_CREATED_AT = [
+  "2026-09-22T09:15:00.000Z",
+  "2026-09-22T11:40:00.000Z",
+  "2026-09-22T14:05:00.000Z",
+  "2026-09-23T08:30:00.000Z",
+  "2026-09-23T10:20:00.000Z",
+];
+
 export const SEED_TASKS: Task[] = SEED_CARDS.map((card, i) => {
   const rating = calculateRating(card);
   return {
@@ -99,7 +109,7 @@ export const SEED_TASKS: Task[] = SEED_CARDS.map((card, i) => {
     card,
     rating: rating.score,
     readiness: rating.readiness,
-    createdAt: new Date(Date.now() - (SEED_CARDS.length - i) * 3600_000).toISOString(),
+    createdAt: SEED_CREATED_AT[i],
   };
 });
 

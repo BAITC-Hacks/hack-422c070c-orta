@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { calculateRating, RatingResult } from "@/lib/rating";
-import { ReadinessLevel, Task, TaskCard, Team, TeamResponse } from "@/lib/types";
+import { ReadinessLevel, ResponseStatus, Task, TaskCard, Team, TeamResponse } from "@/lib/types";
 import { SEED_DRAFTS, SEED_TASKS, SEED_TEAMS, SEED_RESPONSES } from "@/lib/seed";
 
 interface Question {
@@ -30,11 +30,21 @@ function readinessBadgeClass(level: ReadinessLevel): string {
 // Подбор задач под команду: сравниваем слова из профиля (интересы/навыки/технологии)
 // со словами из темы и контекста задачи. Не ИИ — прозрачное, объяснимое совпадение,
 // ИИ по правилам (раздел 5 ТЗ) может рекомендовать, но не обязан.
+// Формат "23.09 в 16:42" — фиксированная локаль, чтобы сервер и браузер выдали одинаковую строку.
+function formatPublishedAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)} в ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function matchesTeamProfile(task: Task, team: Team): boolean {
   const profileWords = `${team.interests} ${team.skills} ${team.tech}`.toLowerCase().split(/[^a-zа-я0-9]+/).filter((w) => w.length > 3);
   const taskText = `${task.card.topic} ${task.card.context} ${task.card.need}`.toLowerCase();
   return profileWords.some((w) => taskText.includes(w));
 }
+
+const STORAGE_KEY = "ai-sana-challenge-hub";
 
 type Step = "draft" | "questions" | "card" | "published";
 type Role = "business" | "team" | null;
@@ -45,6 +55,11 @@ export default function Home() {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const publishing = useRef(false);
+  const [lastPublishedId, setLastPublishedId] = useState<string | null>(null);
+  // Время публикации показываем только после монтирования: на сервере другая таймзона,
+  // иначе React сообщает о расхождении разметки.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!expandedTaskId) return;
@@ -64,6 +79,7 @@ export default function Home() {
   const [rating, setRating] = useState<RatingResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notUnderstood, setNotUnderstood] = useState<string | null>(null);
 
   const [catalog, setCatalog] = useState<Task[]>(() => [...SEED_TASKS].sort((a, b) => b.rating - a.rating));
   const [responses, setResponses] = useState<TeamResponse[]>(SEED_RESPONSES);
@@ -88,10 +104,46 @@ export default function Home() {
       return bMatch - aMatch;
     });
 
+  // Каталог и отклики переживают перезагрузку страницы: храним их в localStorage.
+  // Читаем после монтирования (на сервере localStorage нет), поэтому разметка не расходится.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as { catalog?: Task[]; responses?: TeamResponse[] };
+      if (Array.isArray(parsed.catalog) && parsed.catalog.length > 0) setCatalog(parsed.catalog);
+      if (Array.isArray(parsed.responses)) setResponses(parsed.responses);
+    } catch {
+      // Повреждённые или недоступные данные игнорируем — остаются демо-данные.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ catalog, responses }));
+    } catch {
+      // Приватный режим или переполнение хранилища — просто не сохраняем.
+    }
+  }, [catalog, responses, mounted]);
+
+  function resetDemoData() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    setCatalog([...SEED_TASKS].sort((a, b) => b.rating - a.rating));
+    setResponses(SEED_RESPONSES);
+    setLastPublishedId(null);
+    resetFlow();
+  }
+
   async function handleDraftSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNotUnderstood(null);
 
     const controller = new AbortController();
     activeRequest.current = controller;
@@ -107,6 +159,10 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Ошибка");
+        return;
+      }
+      if (data.understood === false) {
+        setNotUnderstood(data.clarification_message);
         return;
       }
       setQuestions(data.questions);
@@ -185,24 +241,30 @@ export default function Home() {
       createdAt: new Date().toISOString(),
     };
     setCatalog((prev) => [...prev, task].sort((a, b) => b.rating - a.rating));
+    setLastPublishedId(task.id);
     setStep("published");
+    // Каталог отсортирован по рейтингу, поэтому свежая задача может оказаться внизу списка —
+    // прокручиваем к ней, чтобы публикация была видна сразу.
+    setTimeout(() => {
+      document.getElementById(`task-${task.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
   }
 
-  function submitResponse(taskId: string, teamId: string, idea: string, plan: string, link: string) {
+  function submitResponse(taskId: string, teamId: string, idea: string, plan: string, deadline: string, link: string) {
     const response: TeamResponse = {
       id: `resp-${Date.now()}`,
       taskId,
       teamId,
       idea,
       plan,
-      deadline: "",
+      deadline,
       link,
       status: "pending",
     };
     setResponses((prev) => [...prev, response]);
   }
 
-  function decideResponse(id: string, status: "accepted" | "declined") {
+  function decideResponse(id: string, status: ResponseStatus) {
     setResponses((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
   }
 
@@ -216,6 +278,7 @@ export default function Home() {
     setCard(null);
     setRating(null);
     setError(null);
+    setNotUnderstood(null);
   }
 
   function switchRole() {
@@ -226,20 +289,48 @@ export default function Home() {
   }
 
   return (
-    <main className="flex-1 max-w-[1440px] mx-auto w-full px-8 md:px-16 py-12">
-      <h1 className="text-3xl font-bold mb-2 tracking-tight">
+    <main className="flex-1 max-w-[1440px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6 sm:py-12">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
         AI Sana <span className="text-accent">Challenge Hub</span>
       </h1>
       <p className="text-sm text-muted mb-6">От бизнес-задачи к решению — HackAlem AI, трек «Образование»</p>
 
       {role && (
-        <div className="flex items-center gap-3 mb-10 text-sm">
+        <div className="flex flex-wrap items-center gap-3 mb-6 sm:mb-10 text-sm">
           <span className="border border-accent text-accent rounded-full px-3 py-1">
-            Роль: {role === "business" ? "Представитель бизнеса" : "Студенческая команда"}
+            {displayName.trim() && <span className="text-foreground">{displayName.trim()} · </span>}
+            {role === "business" ? "Представитель бизнеса" : "Студенческая команда"}
           </span>
           <button onClick={switchRole} className="text-muted hover:text-accent transition underline underline-offset-2">
             Сменить роль
           </button>
+        </div>
+      )}
+
+      {role && (
+        <div className="lg:hidden border border-border-subtle bg-surface rounded-xl p-3 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+          {role === "business" ? (
+            <>
+              <span>
+                Опубликовано: <span className="text-foreground">{catalog.length}</span>
+              </span>
+              <span>
+                Откликов: <span className="text-foreground">{responses.length}</span>
+              </span>
+              <span>
+                Принято: <span className="text-accent">{responses.filter((r) => r.status === "accepted").length}</span>
+              </span>
+            </>
+          ) : (
+            <>
+              <span>
+                Задач в каталоге: <span className="text-foreground">{catalog.length}</span>
+              </span>
+              <span>
+                Тем для фильтра: <span className="text-foreground">{topics.length}</span>
+              </span>
+            </>
+          )}
         </div>
       )}
 
@@ -293,6 +384,12 @@ export default function Home() {
                   Тем для фильтра: <span className="text-foreground">{topics.length}</span>
                 </p>
               )}
+              <button
+                onClick={resetDemoData}
+                className="mt-3 text-xs text-muted hover:text-danger transition underline underline-offset-2"
+              >
+                Сбросить к демо-данным
+              </button>
             </div>
 
             <p className="text-xs uppercase tracking-wide text-muted mb-1">
@@ -319,7 +416,7 @@ export default function Home() {
                 topics.map((topic) => (
                   <button
                     key={topic}
-                    onClick={() => setFilterTopic(topic)}
+                    onClick={() => setFilterTopic(filterTopic === topic ? "all" : topic)}
                     className={`text-left text-sm truncate border-l-2 pl-2 py-0.5 transition ${
                       filterTopic === topic ? "border-accent text-accent" : "border-border-subtle text-muted hover:text-accent hover:border-accent"
                     }`}
@@ -362,6 +459,12 @@ export default function Home() {
               >
                 {loading ? "Анализирую..." : "Проанализировать черновик"}
               </button>
+              {notUnderstood && (
+                <div className="border border-accent-blue/50 bg-surface rounded-xl p-4 text-sm">
+                  <p className="text-accent-blue font-semibold mb-1">Не совсем понял черновик</p>
+                  <p>{notUnderstood}</p>
+                </div>
+              )}
             </form>
           )}
 
@@ -484,8 +587,24 @@ export default function Home() {
           )}
 
           {step === "published" && (
-            <div className="flex flex-col gap-6">
-              <p className="text-accent font-semibold">Задача опубликована в каталоге.</p>
+            <div className="flex flex-col gap-4 max-w-2xl">
+              {(() => {
+                const published = catalog.find((t) => t.id === lastPublishedId);
+                return (
+                  <div className="border border-accent bg-surface rounded-xl p-4">
+                    <p className="text-accent font-semibold mb-1">Задача опубликована в каталоге</p>
+                    {published && (
+                      <p className="text-sm">
+                        «{published.card.title || "Без названия"}» — рейтинг {published.rating}/100, уровень «{published.readiness}».
+                        <br />
+                        <span className="text-muted">
+                          Задачи в каталоге отсортированы по рейтингу, поэтому эта может быть не на первом месте — она подсвечена ниже.
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               <button
                 onClick={resetFlow}
                 className="self-start rounded-full border border-border-subtle px-6 py-2.5 hover:border-accent hover:text-accent transition"
@@ -502,7 +621,16 @@ export default function Home() {
             {catalog.length === 0 && <p className="text-muted text-sm">Пока нет опубликованных задач.</p>}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {catalog.map((task) => (
-                <div key={task.id} id={`task-${task.id}`} className="border border-border-subtle bg-surface rounded-2xl p-5 scroll-mt-8">
+                <div
+                  key={task.id}
+                  id={`task-${task.id}`}
+                  className={`rounded-2xl p-5 scroll-mt-8 border ${
+                    task.id === lastPublishedId ? "border-accent bg-surface-soft" : "border-border-subtle bg-surface"
+                  }`}
+                >
+                  {task.id === lastPublishedId && (
+                    <p className="text-xs font-semibold text-accent mb-2">Только что опубликовано</p>
+                  )}
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-semibold">{task.card.title || "(без названия)"}</h3>
@@ -516,6 +644,9 @@ export default function Home() {
                       {task.rating}/100 — {task.readiness}
                     </span>
                   </div>
+                  {mounted && (
+                    <p className="text-xs text-muted mt-2">Опубликовано {formatPublishedAt(task.createdAt)}</p>
+                  )}
                   <p className="text-sm text-muted mt-2">{task.card.context}</p>
 
                   <div className="mt-4">
@@ -550,6 +681,12 @@ export default function Home() {
                                 {r.plan}
                               </p>
                             )}
+                            {r.deadline && (
+                              <p className="mt-1">
+                                <span className="text-muted">Срок: </span>
+                                {r.deadline}
+                              </p>
+                            )}
                             {r.link && (
                               <p className="mt-1">
                                 <span className="text-muted">Прототип: </span>
@@ -582,6 +719,14 @@ export default function Home() {
                                   <p className="text-muted mt-1">Формат дальнейшей работы (как вы указали): {task.card.format}</p>
                                 )}
                               </div>
+                            )}
+                            {r.status !== "pending" && (
+                              <button
+                                onClick={() => decideResponse(r.id, "pending")}
+                                className="text-xs text-muted hover:text-accent transition underline underline-offset-2 mt-2"
+                              >
+                                Вернуть на рассмотрение
+                              </button>
                             )}
                           </div>
                         );
@@ -677,7 +822,10 @@ export default function Home() {
                   <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
                     <div className="h-full rounded-full bg-accent" style={{ width: `${task.rating}%` }} />
                   </div>
-                  <p className="text-xs text-muted mt-1">Рейтинг {task.rating}/100</p>
+                  <p className="text-xs text-muted mt-1">
+                    Рейтинг {task.rating}/100
+                    {mounted && ` · опубликовано ${formatPublishedAt(task.createdAt)}`}
+                  </p>
                 </div>
 
                 <p className="text-sm text-muted mt-3 line-clamp-2">{task.card.context}</p>
@@ -809,11 +957,12 @@ function TeamResponseForm({
 }: {
   taskId: string;
   teams: Team[];
-  onSubmit: (taskId: string, teamId: string, idea: string, plan: string, link: string) => void;
+  onSubmit: (taskId: string, teamId: string, idea: string, plan: string, deadline: string, link: string) => void;
 }) {
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [idea, setIdea] = useState("");
   const [plan, setPlan] = useState("");
+  const [deadline, setDeadline] = useState("");
   const [link, setLink] = useState("");
   const [sent, setSent] = useState(false);
 
@@ -822,9 +971,10 @@ function TeamResponseForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (!idea.trim()) return;
-        onSubmit(taskId, teamId, idea, plan, link);
+        onSubmit(taskId, teamId, idea, plan, deadline, link);
         setIdea("");
         setPlan("");
+        setDeadline("");
         setLink("");
         setSent(true);
       }}
@@ -852,6 +1002,12 @@ function TeamResponseForm({
         value={plan}
         onChange={(e) => setPlan(e.target.value)}
         placeholder="Краткий план"
+        className="border border-border-subtle bg-background rounded-lg p-2 text-sm focus:outline-none focus:border-accent"
+      />
+      <input
+        value={deadline}
+        onChange={(e) => setDeadline(e.target.value)}
+        placeholder="Срок (например: 2 недели)"
         className="border border-border-subtle bg-background rounded-lg p-2 text-sm focus:outline-none focus:border-accent"
       />
       <input

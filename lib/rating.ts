@@ -1,9 +1,16 @@
 import { ReadinessLevel, TaskCard } from "./types";
 
-const MIN_FIELD_LENGTH = 8;
+const MIN_FIELD_LENGTH = 12;
+const MIN_FIELD_WORDS = 3;
 
+// Поле считается заполненным, только если это осмысленная фраза:
+// не меньше 12 символов И не меньше 3 слов. Так нельзя набить баллы
+// случайным набором букв — рейтинг остаётся честным.
 function filled(value: string): boolean {
-  return value.trim().length >= MIN_FIELD_LENGTH;
+  const trimmed = value.trim();
+  if (trimmed.length < MIN_FIELD_LENGTH) return false;
+  const words = trimmed.split(/\s+/).filter((w) => w.length > 1);
+  return words.length >= MIN_FIELD_WORDS;
 }
 
 export interface RatingBreakdownItem {
