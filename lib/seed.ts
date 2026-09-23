@@ -1,5 +1,8 @@
-// Синтетические тестовые данные (минимальный объём по ТЗ: 5 черновиков, 5 профилей).
-// Используются для ручного тестирования сценария и на демонстрации.
+// Синтетические тестовые данные (минимальный объём по ТЗ, раздел 6):
+// 5 черновиков, 5 карточек, 5 профилей команд, 5 откликов.
+
+import { calculateRating } from "./rating";
+import { Task, TaskCard, Team, TeamResponse } from "./types";
 
 export const SEED_DRAFTS: string[] = [
   // Слабый черновик — специально для демо роста рейтинга на защите
@@ -14,17 +17,141 @@ export const SEED_DRAFTS: string[] = [
   "Разработать чат-бота для школы",
 ];
 
-export interface SeedTeamProfile {
-  name: string;
-  interests: string;
-  skills: string;
-  tech: string;
-}
+export const SEED_TEAMS: Team[] = [
+  { id: "t1", name: "DataFalcons", interests: "Аналитика данных, дашборды", skills: "Python, SQL, Power BI", tech: "Python, FastAPI" },
+  { id: "t2", name: "NeuroKazakh", interests: "NLP на казахском и русском", skills: "ML, NLP", tech: "PyTorch, HuggingFace" },
+  { id: "t3", name: "WebSmiths", interests: "Быстрые MVP веб-сервисов", skills: "Frontend/Backend", tech: "Next.js, TypeScript" },
+  { id: "t4", name: "AutomateKZ", interests: "Автоматизация бизнес-процессов", skills: "RPA, интеграции", tech: "n8n, Zapier, Python" },
+  { id: "t5", name: "EduBridge", interests: "EdTech решения", skills: "Продукт, дизайн, фронтенд", tech: "React, Supabase" },
+];
 
-export const SEED_TEAM_PROFILES: SeedTeamProfile[] = [
-  { name: "DataFalcons", interests: "Аналитика данных, дашборды", skills: "Python, SQL, Power BI", tech: "Python, FastAPI" },
-  { name: "NeuroKazakh", interests: "NLP на казахском и русском", skills: "ML, NLP", tech: "PyTorch, HuggingFace" },
-  { name: "WebSmiths", interests: "Быстрые MVP веб-сервисов", skills: "Frontend/Backend", tech: "Next.js, TypeScript" },
-  { name: "AutomateKZ", interests: "Автоматизация бизнес-процессов", skills: "RPA, интеграции", tech: "n8n, Zapier, Python" },
-  { name: "EduBridge", interests: "EdTech решения", skills: "Продукт, дизайн, фронтенд", tech: "React, Supabase" },
+const emptyCard = (): TaskCard => ({
+  title: "",
+  topic: "",
+  context: "",
+  need: "",
+  users: "",
+  data: "",
+  constraints: "",
+  expectedResult: "",
+  successCriteria: "",
+  contact: "",
+  format: "",
+});
+
+const SEED_CARDS: TaskCard[] = [
+  {
+    ...emptyCard(),
+    title: "Бот для ответов клиентам сети кофеен",
+    topic: "Чат-боты",
+    context: "Сеть кофеен в Астане получает много однотипных вопросов в Instagram и WhatsApp, сотрудники тратят на ответы несколько часов в день.",
+    need: "Нужен бот, который автоматически отвечает на частые вопросы клиентов на русском и казахском языках.",
+    users: "Клиенты сети кофеен, пишущие в Instagram и WhatsApp",
+    data: "Актуальное меню, часы работы и адреса точек, история типичных вопросов за 3 месяца",
+    constraints: "Срок 3 недели, ответы не позже 1 минуты, доступ только к Instagram и WhatsApp Business API",
+    expectedResult: "Бот, который отвечает на частые вопросы клиентов без участия сотрудника",
+    successCriteria: "Не менее 70% типовых вопросов закрываются ботом без передачи человеку",
+    contact: "Маркетолог сети, email и Telegram для связи",
+    format: "Еженедельная встреча по видеосвязи для обратной связи",
+  },
+  {
+    ...emptyCard(),
+    title: "Автоматическое ранжирование анкет соискателей",
+    topic: "Аналитика данных",
+    context: "HR-отдел вручную просматривает 500 анкет соискателей в Excel на вакансию Python-разработчика, это занимает много времени.",
+    need: "Нужен инструмент, который автоматически ранжирует анкеты по соответствию вакансии.",
+    users: "HR-менеджер, который проводит первичный отбор",
+    data: "Excel-файл с 500 анкетами: опыт, навыки, зарплатные ожидания",
+    expectedResult: "Таблица кандидатов с баллом соответствия и кратким обоснованием",
+    successCriteria: "HR-менеджер сокращает время на первичный отбор минимум вдвое",
+  },
+  {
+    ...emptyCard(),
+    title: "Дашборд расходов на стройматериалы",
+    topic: "Автоматизация",
+    context: "Расходы на стройматериалы по объектам ведутся в 1С, прораб узнаёт о превышении бюджета слишком поздно.",
+    need: "Нужен дашборд, который показывает расходы по объекту в реальном времени.",
+    data: "Выгрузка расходов по объектам из 1С в формате CSV за 2025 год",
+    expectedResult: "Дашборд для прораба с текущими расходами по каждому объекту",
+  },
+  {
+    ...emptyCard(),
+    title: "Чат-бот для школы",
+    topic: "EdTech",
+    context: "Родители часто звонят в школу с одинаковыми вопросами про расписание и оценки.",
+    need: "Нужен чат-бот, который отвечает на частые вопросы родителей.",
+  },
+  {
+    ...emptyCard(),
+    title: "Автоматическая проверка заявок клиентов",
+    topic: "Автоматизация",
+    context: "Сейчас 3 менеджера вручную проверяют заявки клиентов в Excel, это занимает около 2 часов в день.",
+    need: "Нужно автоматизировать первичную проверку заявок клиентов.",
+    data: "CSV-выгрузка заявок за последний год, около 2000 строк",
+  },
+];
+
+export const SEED_TASKS: Task[] = SEED_CARDS.map((card, i) => {
+  const rating = calculateRating(card);
+  return {
+    id: `seed-${i + 1}`,
+    draftText: SEED_DRAFTS[i],
+    card,
+    rating: rating.score,
+    readiness: rating.readiness,
+    createdAt: new Date(Date.now() - (SEED_CARDS.length - i) * 3600_000).toISOString(),
+  };
+});
+
+export const SEED_RESPONSES: TeamResponse[] = [
+  {
+    id: "seed-resp-1",
+    taskId: "seed-1",
+    teamId: "t2",
+    idea: "Соберём бота на базе NLP-модели с поддержкой казахского и русского, интеграция через WhatsApp Business API",
+    plan: "Неделя 1 — сбор и разметка типовых вопросов, неделя 2 — обучение и интеграция, неделя 3 — тестирование",
+    deadline: "3 недели",
+    link: "https://github.com/example/coffee-bot-demo",
+    status: "pending",
+  },
+  {
+    id: "seed-resp-2",
+    taskId: "seed-1",
+    teamId: "t5",
+    idea: "Сделаем бота на готовом фреймворке диалогов с ручной базой ответов, без обучения модели — быстрее в разработке",
+    plan: "База ответов → простой NLU для казахского/русского → подключение к Instagram и WhatsApp",
+    deadline: "2 недели",
+    link: "https://github.com/example/simple-faq-bot",
+    status: "pending",
+  },
+  {
+    id: "seed-resp-3",
+    taskId: "seed-2",
+    teamId: "t1",
+    idea: "Модель ранжирования на основе TF-IDF по ключевым навыкам вакансии плюс ручные веса по опыту",
+    plan: "Разбор Excel → векторизация текста анкет → скоринг → таблица с обоснованием",
+    deadline: "2 недели",
+    link: "https://github.com/example/resume-ranking",
+    status: "accepted",
+  },
+  {
+    id: "seed-resp-4",
+    taskId: "seed-3",
+    teamId: "t4",
+    idea: "Автоматическая выгрузка из 1С по расписанию + дашборд на Power BI с оповещением о превышении бюджета",
+    plan: "Настройка выгрузки → дашборд → алерты по порогу 10%",
+    deadline: "10 дней",
+    link: "https://github.com/example/budget-dashboard",
+    status: "pending",
+  },
+  {
+    id: "seed-resp-5",
+    taskId: "seed-5",
+    teamId: "t3",
+    idea: "Веб-сервис с правилами проверки заявок и ручной модерацией подозрительных случаев",
+    plan: "Импорт CSV → набор правил валидации → интерфейс модерации",
+    deadline: "1 неделя",
+    link: "https://github.com/example/claims-check",
+    status: "declined",
+  },
 ];

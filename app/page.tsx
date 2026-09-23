@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { calculateRating, RatingResult } from "@/lib/rating";
 import { ReadinessLevel, Task, TaskCard, Team, TeamResponse } from "@/lib/types";
-import { SEED_DRAFTS, SEED_TEAM_PROFILES } from "@/lib/seed";
+import { SEED_DRAFTS, SEED_TASKS, SEED_TEAMS, SEED_RESPONSES } from "@/lib/seed";
 
 interface Question {
   category: string;
@@ -13,8 +13,6 @@ interface Question {
 interface Answer extends Question {
   answer: string;
 }
-
-const SEED_TEAMS: Team[] = SEED_TEAM_PROFILES.map((p, i) => ({ id: `t${i + 1}`, ...p }));
 
 function readinessBadgeClass(level: ReadinessLevel): string {
   switch (level) {
@@ -45,8 +43,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [catalog, setCatalog] = useState<Task[]>([]);
-  const [responses, setResponses] = useState<TeamResponse[]>([]);
+  const [catalog, setCatalog] = useState<Task[]>(() => [...SEED_TASKS].sort((a, b) => b.rating - a.rating));
+  const [responses, setResponses] = useState<TeamResponse[]>(SEED_RESPONSES);
   const [filterTopic, setFilterTopic] = useState<string>("all");
   const [filterReadiness, setFilterReadiness] = useState<ReadinessLevel | "all">("all");
 
