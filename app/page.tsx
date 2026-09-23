@@ -403,7 +403,7 @@ export default function Home() {
             </div>
           )}
 
-          {error && <p className="mt-4 text-red-400">{error}</p>}
+          {error && <p className="mt-4 text-danger">{error}</p>}
 
           <section className="mt-16">
             <h2 className="text-xl font-bold mb-4">Мои задачи и отклики</h2>
@@ -436,7 +436,7 @@ export default function Home() {
                       .map((r) => {
                         const team = SEED_TEAMS.find((t) => t.id === r.teamId);
                         const statusColor =
-                          r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-red-400" : "text-muted";
+                          r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-danger" : "text-muted";
                         return (
                           <div key={r.id} className="border border-border-subtle bg-background rounded-xl p-3 mb-2 text-sm">
                             <p>
@@ -456,7 +456,7 @@ export default function Home() {
                                 </button>
                                 <button
                                   onClick={() => decideResponse(r.id, "declined")}
-                                  className="text-xs rounded-full border border-border-subtle px-3 py-1 hover:border-red-400 hover:text-red-400 transition"
+                                  className="text-xs rounded-full border border-border-subtle px-3 py-1 hover:border-danger hover:text-danger transition"
                                 >
                                   Отклонить
                                 </button>
@@ -577,7 +577,7 @@ export default function Home() {
                 const team = SEED_TEAMS.find((t) => t.id === r.teamId);
                 const task = catalog.find((t) => t.id === r.taskId);
                 const statusColor =
-                  r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-red-400" : "text-muted";
+                  r.status === "accepted" ? "text-accent" : r.status === "declined" ? "text-danger" : "text-muted";
                 return (
                   <div key={r.id} className="border border-border-subtle bg-surface rounded-xl p-3 text-xs">
                     <p className="font-semibold truncate">{team?.name}</p>

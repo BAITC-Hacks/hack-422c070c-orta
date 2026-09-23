@@ -13,6 +13,8 @@
   --accent-foreground: #0d1117;
   /* Мягкий синий — доверие/спокойствие, для второстепенных акцентов */
   --accent-blue: #7db8f2;
+  /* Приглушённый коралловый — предупреждение/отклонение, без резкого стандартного красного */
+  --danger: #e08a7e;
 }
 
 @theme inline {
@@ -25,6 +27,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-blue: var(--accent-blue);
+  --color-danger: var(--danger);
 }
 
 body {
