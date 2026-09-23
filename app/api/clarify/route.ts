@@ -1,8 +1,6 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { CLARIFY_PROMPT } from "@/lib/prompts";
-
-const client = new OpenAI({ timeout: 18000, maxRetries: 1 });
+import { getOpenAIClient, mapOpenAIError } from "@/lib/openai";
 
 interface ClarifyResult {
   missing_categories: string[];
@@ -17,6 +15,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    const client = getOpenAIClient();
     const response = await client.chat.completions.create({
       model: "gpt-5.4-mini",
       response_format: { type: "json_object" },
@@ -28,7 +27,7 @@ export async function POST(req: Request) {
 
     const text = response.choices[0]?.message?.content ?? "";
 
-    let parsed: ClarifyResult;
+    let parsed: Partial<ClarifyResult>;
     try {
       parsed = JSON.parse(text);
     } catch {
@@ -38,19 +37,20 @@ export async function POST(req: Request) {
     if (!Array.isArray(parsed.questions) || parsed.questions.length < 3) {
       return NextResponse.json({ error: "Модель вернула меньше 3 вопросов, попробуйте ещё раз" }, { status: 502 });
     }
+    const questions = parsed.questions.filter(
+      (q): q is { category: string; question: string } =>
+        typeof q?.category === "string" && typeof q?.question === "string"
+    );
+    if (questions.length < 3) {
+      return NextResponse.json({ error: "Модель вернула вопросы в неверном формате, попробуйте ещё раз" }, { status: 502 });
+    }
+    const missingCategories = Array.isArray(parsed.missing_categories)
+      ? parsed.missing_categories.filter((c): c is string => typeof c === "string")
+      : [];
 
-    return NextResponse.json(parsed);
+    const result: ClarifyResult = { missing_categories: missingCategories, questions };
+    return NextResponse.json(result);
   } catch (err) {
-    if (err instanceof OpenAI.AuthenticationError) {
-      return NextResponse.json({ error: "Неверный OPENAI_API_KEY" }, { status: 500 });
-    }
-    if (err instanceof OpenAI.RateLimitError) {
-      return NextResponse.json({ error: "Лимит запросов, попробуйте через минуту" }, { status: 429 });
-    }
-    if (err instanceof OpenAI.APIConnectionTimeoutError) {
-      return NextResponse.json({ error: "Модель не ответила вовремя, попробуйте ещё раз" }, { status: 504 });
-    }
-    console.error(err);
-    return NextResponse.json({ error: "Ошибка генерации вопросов" }, { status: 500 });
+    return mapOpenAIError(err);
   }
 }

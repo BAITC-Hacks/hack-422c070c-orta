@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { calculateRating, RatingResult } from "@/lib/rating";
 import { ReadinessLevel, Task, TaskCard, Team, TeamResponse } from "@/lib/types";
 import { SEED_DRAFTS, SEED_TASKS, SEED_TEAMS, SEED_RESPONSES } from "@/lib/seed";
@@ -34,6 +34,8 @@ export default function Home() {
   const [role, setRole] = useState<Role>(null);
   const [displayName, setDisplayName] = useState("");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
+  const publishing = useRef(false);
 
   const [step, setStep] = useState<Step>("draft");
   const [draftText, setDraftText] = useState("");
@@ -64,6 +66,7 @@ export default function Home() {
     setError(null);
 
     const controller = new AbortController();
+    activeRequest.current = controller;
     const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
@@ -96,6 +99,7 @@ export default function Home() {
     setError(null);
 
     const controller = new AbortController();
+    activeRequest.current = controller;
     const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
@@ -142,7 +146,8 @@ export default function Home() {
   }
 
   function publishTask() {
-    if (!card || !rating) return;
+    if (!card || !rating || publishing.current) return;
+    publishing.current = true;
     const task: Task = {
       id: `task-${Date.now()}`,
       draftText,
@@ -174,6 +179,8 @@ export default function Home() {
   }
 
   function resetFlow() {
+    activeRequest.current?.abort();
+    publishing.current = false;
     setStep("draft");
     setDraftText("");
     setQuestions([]);
@@ -519,6 +526,15 @@ export default function Home() {
                                 >
                                   Отклонить
                                 </button>
+                              </div>
+                            )}
+                            {r.status === "accepted" && (
+                              <div className="mt-2 border border-accent/40 rounded-lg p-2 text-xs">
+                                <p className="text-accent font-semibold mb-1">Команда выбрана — дальнейшие шаги</p>
+                                <p>Свяжитесь с командой по ссылке на прототип выше{r.link ? "" : " (в отклике не указана — попросите команду прислать контакт)"}.</p>
+                                {task.card.format && (
+                                  <p className="text-muted mt-1">Формат дальнейшей работы (как вы указали): {task.card.format}</p>
+                                )}
                               </div>
                             )}
                           </div>

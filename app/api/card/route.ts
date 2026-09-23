@@ -1,8 +1,6 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { CARD_PROMPT } from "@/lib/prompts";
-
-const client = new OpenAI({ timeout: 18000, maxRetries: 1 });
+import { getOpenAIClient, mapOpenAIError } from "@/lib/openai";
 
 interface CardResult {
   title: string;
@@ -19,6 +17,20 @@ interface CardResult {
   missing_fields: string[];
 }
 
+const STRING_FIELDS: (keyof Omit<CardResult, "missing_fields">)[] = [
+  "title",
+  "topic",
+  "context",
+  "need",
+  "users",
+  "data",
+  "constraints",
+  "expected_result",
+  "success_criteria",
+  "contact",
+  "format",
+];
+
 export async function POST(req: Request) {
   const { draftText, answers } = await req.json();
 
@@ -34,6 +46,7 @@ export async function POST(req: Request) {
     .join("\n");
 
   try {
+    const client = getOpenAIClient();
     const response = await client.chat.completions.create({
       model: "gpt-5.4-mini",
       response_format: { type: "json_object" },
@@ -45,25 +58,28 @@ export async function POST(req: Request) {
 
     const text = response.choices[0]?.message?.content ?? "";
 
-    let parsed: CardResult;
+    let raw: Record<string, unknown>;
     try {
-      parsed = JSON.parse(text);
+      raw = JSON.parse(text);
     } catch {
       return NextResponse.json({ error: "Не удалось разобрать карточку, попробуйте ещё раз" }, { status: 502 });
     }
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      return NextResponse.json({ error: "Модель вернула карточку в неверном формате, попробуйте ещё раз" }, { status: 502 });
+    }
+
+    // Приводим каждое поле к строке — модель иногда возвращает null/число вместо ""
+    const parsed = {} as CardResult;
+    for (const field of STRING_FIELDS) {
+      const value = raw[field];
+      parsed[field] = typeof value === "string" ? value : "";
+    }
+    parsed.missing_fields = Array.isArray(raw.missing_fields)
+      ? raw.missing_fields.filter((f): f is string => typeof f === "string")
+      : [];
 
     return NextResponse.json(parsed);
   } catch (err) {
-    if (err instanceof OpenAI.AuthenticationError) {
-      return NextResponse.json({ error: "Неверный OPENAI_API_KEY" }, { status: 500 });
-    }
-    if (err instanceof OpenAI.RateLimitError) {
-      return NextResponse.json({ error: "Лимит запросов, попробуйте через минуту" }, { status: 429 });
-    }
-    if (err instanceof OpenAI.APIConnectionTimeoutError) {
-      return NextResponse.json({ error: "Модель не ответила вовремя, попробуйте ещё раз" }, { status: 504 });
-    }
-    console.error(err);
-    return NextResponse.json({ error: "Ошибка сборки карточки" }, { status: 500 });
+    return mapOpenAIError(err);
   }
 }
