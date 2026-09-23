@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { calculateRating, RatingResult } from "@/lib/rating";
 import { ReadinessLevel, Task, TaskCard, Team, TeamResponse } from "@/lib/types";
 import { SEED_DRAFTS, SEED_TASKS, SEED_TEAMS, SEED_RESPONSES } from "@/lib/seed";
@@ -45,6 +45,15 @@ export default function Home() {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const publishing = useRef(false);
+
+  useEffect(() => {
+    if (!expandedTaskId) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandedTaskId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedTaskId]);
 
   const [step, setStep] = useState<Step>("draft");
   const [draftText, setDraftText] = useState("");
@@ -689,11 +698,11 @@ export default function Home() {
               if (!task) return null;
               return (
                 <div
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 sm:p-8"
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-2 sm:p-6 animate-backdrop-in"
                   onClick={() => setExpandedTaskId(null)}
                 >
                   <div
-                    className="bg-surface border border-border-subtle rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8"
+                    className="animate-modal-in bg-surface border border-border-subtle rounded-2xl max-w-4xl w-full h-full sm:h-auto sm:max-h-[92vh] overflow-y-auto p-6 sm:p-10"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex justify-between items-start gap-4 mb-4">
