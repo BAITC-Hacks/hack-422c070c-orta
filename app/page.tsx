@@ -168,7 +168,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex-1 max-w-3xl mx-auto w-full px-6 py-12">
+    <main className="flex-1 max-w-6xl mx-auto w-full px-6 md:px-10 py-12">
       <h1 className="text-3xl font-bold mb-2 tracking-tight">
         AI Sana <span className="text-accent">Challenge Hub</span>
       </h1>
@@ -210,7 +210,7 @@ export default function Home() {
       {role === "business" && (
         <>
           {step === "draft" && (
-            <form onSubmit={handleDraftSubmit} className="flex flex-col gap-4">
+            <form onSubmit={handleDraftSubmit} className="flex flex-col gap-4 max-w-2xl">
               <label className="font-semibold">Шаг 1. Опишите бизнес-задачу</label>
               <div className="flex flex-wrap gap-2">
                 {SEED_DRAFTS.map((d, i) => (
@@ -242,7 +242,7 @@ export default function Home() {
           )}
 
           {step === "questions" && (
-            <form onSubmit={handleAnswersSubmit} className="flex flex-col gap-4">
+            <form onSubmit={handleAnswersSubmit} className="flex flex-col gap-4 max-w-2xl">
               <label className="font-semibold">Шаг 2. Ответьте на уточняющие вопросы</label>
               {missingCategories.length > 0 && (
                 <p className="text-sm text-muted">Слабо раскрыто: {missingCategories.join(", ")}</p>
@@ -274,7 +274,7 @@ export default function Home() {
           )}
 
           {step === "card" && card && rating && (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 max-w-2xl">
               <div className="relative">
                 <div className="flex items-start justify-between gap-4">
                   <label className="font-semibold">Шаг 3. Проверьте и отредактируйте карточку</label>
@@ -358,7 +358,7 @@ export default function Home() {
           <section className="mt-16">
             <h2 className="text-xl font-bold mb-4">Мои задачи и отклики</h2>
             {catalog.length === 0 && <p className="text-muted text-sm">Пока нет опубликованных задач.</p>}
-            <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {catalog.map((task) => (
                 <div key={task.id} className="border border-border-subtle bg-surface rounded-2xl p-5">
                   <div className="flex justify-between items-start">
@@ -463,7 +463,7 @@ export default function Home() {
             </p>
           )}
 
-          <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredCatalog.map((task) => (
               <div key={task.id} className="border border-border-subtle bg-surface rounded-2xl p-5">
                 <div className="flex justify-between items-start">
