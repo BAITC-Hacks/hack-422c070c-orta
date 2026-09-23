@@ -27,6 +27,15 @@ function readinessBadgeClass(level: ReadinessLevel): string {
   }
 }
 
+// Подбор задач под команду: сравниваем слова из профиля (интересы/навыки/технологии)
+// со словами из темы и контекста задачи. Не ИИ — прозрачное, объяснимое совпадение,
+// ИИ по правилам (раздел 5 ТЗ) может рекомендовать, но не обязан.
+function matchesTeamProfile(task: Task, team: Team): boolean {
+  const profileWords = `${team.interests} ${team.skills} ${team.tech}`.toLowerCase().split(/[^a-zа-я0-9]+/).filter((w) => w.length > 3);
+  const taskText = `${task.card.topic} ${task.card.context} ${task.card.need}`.toLowerCase();
+  return profileWords.some((w) => taskText.includes(w));
+}
+
 type Step = "draft" | "questions" | "card" | "published";
 type Role = "business" | "team" | null;
 
@@ -51,14 +60,24 @@ export default function Home() {
   const [responses, setResponses] = useState<TeamResponse[]>(SEED_RESPONSES);
   const [filterTopic, setFilterTopic] = useState<string>("all");
   const [filterReadiness, setFilterReadiness] = useState<ReadinessLevel | "all">("all");
+  const [myTeamId, setMyTeamId] = useState<string>("all");
 
   const topics = Array.from(new Set(catalog.map((t) => t.card.topic).filter(Boolean)));
   const readinessLevels: ReadinessLevel[] = ["черновик", "рабочая", "готовая", "приоритетная"];
-  const filteredCatalog = catalog.filter(
-    (t) =>
-      (filterTopic === "all" || t.card.topic === filterTopic) &&
-      (filterReadiness === "all" || t.readiness === filterReadiness)
-  );
+  const myTeam = SEED_TEAMS.find((t) => t.id === myTeamId) ?? null;
+  const filteredCatalog = catalog
+    .filter(
+      (t) =>
+        (filterTopic === "all" || t.card.topic === filterTopic) &&
+        (filterReadiness === "all" || t.readiness === filterReadiness)
+    )
+    .slice()
+    .sort((a, b) => {
+      if (!myTeam) return 0;
+      const aMatch = matchesTeamProfile(a, myTeam) ? 1 : 0;
+      const bMatch = matchesTeamProfile(b, myTeam) ? 1 : 0;
+      return bMatch - aMatch;
+    });
 
   async function handleDraftSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -580,6 +599,20 @@ export default function Home() {
                 </option>
               ))}
             </select>
+
+            <label className="text-muted">Подобрать под команду:</label>
+            <select
+              value={myTeamId}
+              onChange={(e) => setMyTeamId(e.target.value)}
+              className="border border-border-subtle bg-surface rounded-full px-3 py-1.5 focus:outline-none focus:border-accent"
+            >
+              <option value="all">Не выбрано</option>
+              {SEED_TEAMS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {filteredCatalog.length === 0 && (
@@ -589,13 +622,18 @@ export default function Home() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredCatalog.map((task) => (
+            {filteredCatalog.map((task) => {
+              const recommended = myTeam !== null && matchesTeamProfile(task, myTeam);
+              return (
               <div
                 key={task.id}
-                className="border border-border-subtle bg-surface rounded-2xl p-5 hover:border-accent/60 transition"
+                className={`border rounded-2xl p-5 hover:border-accent/60 transition ${recommended ? "border-accent bg-surface-soft" : "border-border-subtle bg-surface"}`}
               >
                 <div className="flex justify-between items-start gap-3">
                   <div>
+                    {recommended && (
+                      <span className="inline-block mb-1.5 text-xs font-semibold text-accent">✦ Рекомендовано вашей команде</span>
+                    )}
                     <h3 className="font-semibold text-lg">{task.card.title || "(без названия)"}</h3>
                     {task.card.topic && (
                       <span className="inline-block mt-1.5 text-xs border border-border-subtle rounded-full px-2 py-0.5 text-muted">
@@ -631,61 +669,82 @@ export default function Home() {
                 )}
 
                 <button
-                  onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                  className="text-xs text-accent-blue hover:underline mt-3"
+                  onClick={() => setExpandedTaskId(task.id)}
+                  className="text-sm text-accent-blue hover:underline mt-4 font-medium"
                 >
-                  {expandedTaskId === task.id ? "Свернуть" : "Подробнее о задаче"}
+                  Подробнее о задаче и откликнуться →
                 </button>
-
-                {expandedTaskId === task.id && (
-                  <div className="mt-2 border-t border-border-subtle pt-3 flex flex-col gap-1.5 text-sm">
-                    {task.card.need && (
-                      <p>
-                        <span className="text-muted">Потребность: </span>
-                        {task.card.need}
-                      </p>
-                    )}
-                    {task.card.data && (
-                      <p>
-                        <span className="text-muted">Данные: </span>
-                        {task.card.data}
-                      </p>
-                    )}
-                    {task.card.constraints && (
-                      <p>
-                        <span className="text-muted">Ограничения: </span>
-                        {task.card.constraints}
-                      </p>
-                    )}
-                    {task.card.successCriteria && (
-                      <p>
-                        <span className="text-muted">Критерии успеха: </span>
-                        {task.card.successCriteria}
-                      </p>
-                    )}
-                    {task.card.contact && (
-                      <p>
-                        <span className="text-muted">Контакт: </span>
-                        {task.card.contact}
-                      </p>
-                    )}
-                    {task.card.format && (
-                      <p>
-                        <span className="text-muted">Формат связи: </span>
-                        {task.card.format}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <TeamResponseForm taskId={task.id} teams={SEED_TEAMS} onSubmit={submitResponse} />
 
                 <p className="text-xs text-muted mt-3">
                   Отправлено откликов на эту задачу: {responses.filter((r) => r.taskId === task.id).length}
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
+
+          {expandedTaskId &&
+            (() => {
+              const task = catalog.find((t) => t.id === expandedTaskId);
+              if (!task) return null;
+              return (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 sm:p-8"
+                  onClick={() => setExpandedTaskId(null)}
+                >
+                  <div
+                    className="bg-surface border border-border-subtle rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-between items-start gap-4 mb-4">
+                      <div>
+                        <h2 className="text-2xl font-bold">{task.card.title || "(без названия)"}</h2>
+                        {task.card.topic && (
+                          <span className="inline-block mt-2 text-xs border border-border-subtle rounded-full px-2 py-0.5 text-muted">
+                            {task.card.topic}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => setExpandedTaskId(null)} className="text-muted hover:text-foreground text-2xl leading-none">
+                        ×
+                      </button>
+                    </div>
+
+                    <span className={`inline-block text-xs font-semibold rounded-full px-2.5 py-1 mb-4 ${readinessBadgeClass(task.readiness)}`}>
+                      {task.rating}/100 — {task.readiness}
+                    </span>
+
+                    <div className="flex flex-col gap-3 text-sm">
+                      {(
+                        [
+                          ["context", "Контекст"],
+                          ["need", "Потребность"],
+                          ["users", "Для кого"],
+                          ["data", "Данные и материалы"],
+                          ["constraints", "Ограничения"],
+                          ["expectedResult", "Ожидаемый результат"],
+                          ["successCriteria", "Критерии успеха"],
+                          ["contact", "Контакт"],
+                          ["format", "Формат связи"],
+                        ] as [keyof TaskCard, string][]
+                      ).map(
+                        ([field, label]) =>
+                          task.card[field] && (
+                            <p key={field}>
+                              <span className="text-muted">{label}: </span>
+                              {task.card[field]}
+                            </p>
+                          )
+                      )}
+                    </div>
+
+                    <div className="border-t border-border-subtle mt-6 pt-4">
+                      <TeamResponseForm taskId={task.id} teams={SEED_TEAMS} onSubmit={submitResponse} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
         </section>
       )}
           </div>
