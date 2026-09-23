@@ -61,11 +61,15 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
     try {
       const res = await fetch("/api/clarify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ draftText }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -76,9 +80,10 @@ export default function Home() {
       setMissingCategories(data.missing_categories ?? []);
       setAnswers(data.questions.map((q: Question) => ({ ...q, answer: "" })));
       setStep("questions");
-    } catch {
-      setError("Не удалось связаться с сервером");
+    } catch (err) {
+      setError(err instanceof DOMException && err.name === "AbortError" ? "Превышено время ожидания ответа, попробуйте ещё раз" : "Не удалось связаться с сервером");
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -88,11 +93,15 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
     try {
       const res = await fetch("/api/card", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ draftText, answers }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -115,9 +124,10 @@ export default function Home() {
       setCard(newCard);
       setRating(calculateRating(newCard));
       setStep("card");
-    } catch {
-      setError("Не удалось связаться с сервером");
+    } catch (err) {
+      setError(err instanceof DOMException && err.name === "AbortError" ? "Превышено время ожидания ответа, попробуйте ещё раз" : "Не удалось связаться с сервером");
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -215,6 +225,8 @@ export default function Home() {
               <p className="text-sm text-muted">Посмотрю каталог задач и откликнусь на подходящую</p>
             </button>
           </div>
+
+          <StepsDiagram />
         </div>
       )}
 
@@ -659,5 +671,42 @@ function TeamResponseForm({
       </button>
       {sent && <p className="text-xs text-accent">Отклик отправлен.</p>}
     </form>
+  );
+}
+
+const STEPS = [
+  { n: 1, title: "Черновик", desc: "Бизнес коротко описывает потребность" },
+  { n: 2, title: "Уточнение", desc: "ИИ задаёт ≥3 вопроса по слабым местам" },
+  { n: 3, title: "Карточка", desc: "Собирается из ответов, без домысливания" },
+  { n: 4, title: "Рейтинг", desc: "Прозрачная оценка 0–100 по 7 критериям" },
+  { n: 5, title: "Каталог", desc: "Публикация на позиции по рейтингу" },
+  { n: 6, title: "Отклик", desc: "Любая команда предлагает решение" },
+  { n: 7, title: "Выбор", desc: "Бизнес вручную решает, с кем работать" },
+];
+
+function StepsDiagram() {
+  return (
+    <div className="mt-16">
+      <p className="text-xs uppercase tracking-wide text-muted mb-6">Как это работает — 7 шагов</p>
+      <div className="flex flex-wrap items-stretch gap-x-2 gap-y-8">
+        {STEPS.map((s, i) => (
+          <div key={s.n} className="flex items-center">
+            <div className="w-40 flex flex-col items-center text-center">
+              <span
+                className="w-9 h-9 rounded-full bg-accent text-accent-foreground font-bold flex items-center justify-center mb-3"
+                style={{ boxShadow: "0 0 16px var(--accent)" }}
+              >
+                {s.n}
+              </span>
+              <div className="border border-border-subtle bg-surface rounded-xl p-3 w-full">
+                <p className="font-semibold text-sm">{s.title}</p>
+                <p className="text-xs text-muted mt-1">{s.desc}</p>
+              </div>
+            </div>
+            {i < STEPS.length - 1 && <span className="text-accent text-xl mx-1 hidden sm:inline">→</span>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

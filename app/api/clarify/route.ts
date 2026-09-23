@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { CLARIFY_PROMPT } from "@/lib/prompts";
 
-const client = new OpenAI();
+const client = new OpenAI({ timeout: 18000, maxRetries: 1 });
 
 interface ClarifyResult {
   missing_categories: string[];
@@ -46,6 +46,9 @@ export async function POST(req: Request) {
     }
     if (err instanceof OpenAI.RateLimitError) {
       return NextResponse.json({ error: "Лимит запросов, попробуйте через минуту" }, { status: 429 });
+    }
+    if (err instanceof OpenAI.APIConnectionTimeoutError) {
+      return NextResponse.json({ error: "Модель не ответила вовремя, попробуйте ещё раз" }, { status: 504 });
     }
     console.error(err);
     return NextResponse.json({ error: "Ошибка генерации вопросов" }, { status: 500 });
