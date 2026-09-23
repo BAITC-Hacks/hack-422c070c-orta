@@ -6,6 +6,7 @@ const client = new Anthropic();
 
 interface CardResult {
   title: string;
+  topic: string;
   context: string;
   need: string;
   users: string;

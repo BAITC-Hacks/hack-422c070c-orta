@@ -9,6 +9,7 @@ export type RatingCategory =
 
 export interface TaskCard {
   title: string;
+  topic: string;
   context: string;
   need: string;
   users: string;

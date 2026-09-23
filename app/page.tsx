@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { calculateRating, RatingResult } from "@/lib/rating";
-import { Task, TaskCard, Team, TeamResponse } from "@/lib/types";
+import { ReadinessLevel, Task, TaskCard, Team, TeamResponse } from "@/lib/types";
+import { SEED_DRAFTS, SEED_TEAM_PROFILES } from "@/lib/seed";
 
 interface Question {
   category: string;
@@ -13,13 +14,7 @@ interface Answer extends Question {
   answer: string;
 }
 
-const SEED_TEAMS: Team[] = [
-  { id: "t1", name: "DataFalcons", interests: "Аналитика данных, дашборды", skills: "Python, SQL, Power BI", tech: "Python, FastAPI" },
-  { id: "t2", name: "NeuroKazakh", interests: "NLP на казахском и русском", skills: "ML, NLP", tech: "PyTorch, HuggingFace" },
-  { id: "t3", name: "WebSmiths", interests: "Быстрые MVP веб-сервисов", skills: "Frontend/Backend", tech: "Next.js, TypeScript" },
-  { id: "t4", name: "AutomateKZ", interests: "Автоматизация бизнес-процессов", skills: "RPA, интеграции", tech: "n8n, Zapier, Python" },
-  { id: "t5", name: "EduBridge", interests: "EdTech решения", skills: "Продукт, дизайн, фронтенд", tech: "React, Supabase" },
-];
+const SEED_TEAMS: Team[] = SEED_TEAM_PROFILES.map((p, i) => ({ id: `t${i + 1}`, ...p }));
 
 type Step = "draft" | "questions" | "card" | "published";
 
@@ -36,6 +31,16 @@ export default function Home() {
 
   const [catalog, setCatalog] = useState<Task[]>([]);
   const [responses, setResponses] = useState<TeamResponse[]>([]);
+  const [filterTopic, setFilterTopic] = useState<string>("all");
+  const [filterReadiness, setFilterReadiness] = useState<ReadinessLevel | "all">("all");
+
+  const topics = Array.from(new Set(catalog.map((t) => t.card.topic).filter(Boolean)));
+  const readinessLevels: ReadinessLevel[] = ["черновик", "рабочая", "готовая", "приоритетная"];
+  const filteredCatalog = catalog.filter(
+    (t) =>
+      (filterTopic === "all" || t.card.topic === filterTopic) &&
+      (filterReadiness === "all" || t.readiness === filterReadiness)
+  );
 
   async function handleDraftSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,6 +87,7 @@ export default function Home() {
       }
       const newCard: TaskCard = {
         title: data.title ?? "",
+        topic: data.topic ?? "",
         context: data.context ?? "",
         need: data.need ?? "",
         users: data.users ?? "",
@@ -159,6 +165,18 @@ export default function Home() {
       {step === "draft" && (
         <form onSubmit={handleDraftSubmit} className="flex flex-col gap-4">
           <label className="font-semibold">Шаг 1. Опишите бизнес-задачу</label>
+          <div className="flex flex-wrap gap-2">
+            {SEED_DRAFTS.map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setDraftText(d)}
+                className="text-xs border rounded-full px-3 py-1 opacity-70 hover:opacity-100"
+              >
+                Пример {i + 1}
+              </button>
+            ))}
+          </div>
           <textarea
             value={draftText}
             onChange={(e) => setDraftText(e.target.value)}
@@ -216,6 +234,7 @@ export default function Home() {
               {(
                 [
                   ["title", "Название"],
+                  ["topic", "Тема"],
                   ["context", "Контекст"],
                   ["need", "Потребность"],
                   ["users", "Пользователи"],
@@ -277,11 +296,41 @@ export default function Home() {
       {catalog.length > 0 && (
         <section className="mt-16">
           <h2 className="text-xl font-bold mb-4">Шаг 5–6. Каталог задач и отклики команд</h2>
+
+          <div className="flex gap-3 mb-6 flex-wrap items-center text-sm">
+            <label className="opacity-70">Тема:</label>
+            <select value={filterTopic} onChange={(e) => setFilterTopic(e.target.value)} className="border rounded p-1 bg-transparent">
+              <option value="all">Все темы</option>
+              {topics.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+
+            <label className="opacity-70">Готовность:</label>
+            <select
+              value={filterReadiness}
+              onChange={(e) => setFilterReadiness(e.target.value as ReadinessLevel | "all")}
+              className="border rounded p-1 bg-transparent"
+            >
+              <option value="all">Все уровни</option>
+              {readinessLevels.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex flex-col gap-6">
-            {catalog.map((task) => (
+            {filteredCatalog.map((task) => (
               <div key={task.id} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start">
-                  <h3 className="font-semibold">{task.card.title || "(без названия)"}</h3>
+                  <div>
+                    <h3 className="font-semibold">{task.card.title || "(без названия)"}</h3>
+                    {task.card.topic && <span className="text-xs opacity-60">{task.card.topic}</span>}
+                  </div>
                   <span className="text-sm opacity-70">
                     {task.rating}/100 — {task.readiness}
                   </span>
