@@ -179,7 +179,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex-1 max-w-6xl mx-auto w-full px-6 md:px-10 py-12">
+    <main className="flex-1 max-w-[1440px] mx-auto w-full px-8 md:px-16 py-12">
       <h1 className="text-3xl font-bold mb-2 tracking-tight">
         AI Sana <span className="text-accent">Challenge Hub</span>
       </h1>
@@ -219,7 +219,7 @@ export default function Home() {
       )}
 
       {role && (
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-10 items-start">
           <aside className="hidden lg:flex flex-col gap-2 sticky top-8">
             <p className="text-xs uppercase tracking-wide text-muted mb-1">
               {role === "business" ? "Мои задачи" : "Темы в каталоге"}

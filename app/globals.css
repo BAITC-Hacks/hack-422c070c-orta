@@ -1,23 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --surface: #16171a;
-  --border: #2a2b2f;
-  --foreground: #f2f2f0;
-  --muted: #9a9a9f;
-  --accent: #c6ff3a;
-  --accent-foreground: #0a0a0a;
+  /* Тёплый тёмно-синий вместо чистого чёрного — меньше напряжения для глаз при долгом просмотре */
+  --background: #0d1117;
+  --surface: #161b22;
+  --surface-soft: #1c2229;
+  --border: #2a323c;
+  --foreground: #eef1f5;
+  --muted: #8b95a1;
+  /* Спокойный зелёный (рост, прогресс, "да") вместо кислотного неона */
+  --accent: #7ee08c;
+  --accent-foreground: #0d1117;
+  /* Мягкий синий — доверие/спокойствие, для второстепенных акцентов */
+  --accent-blue: #7db8f2;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
   --color-border-subtle: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-blue: var(--accent-blue);
 }
 
 body {
